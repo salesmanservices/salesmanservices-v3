@@ -1,41 +1,28 @@
-# Salesman Services V4.1 Login Fix — Password Admin
+# Salesman Services V4.3 — Live AI Inventory
 
-This version replaces Cloudflare Access with a built-in secure password login.
+Cloudflare Worker + Static Assets project based on the working V4.2 admin backend.
 
-## Deploy
+## What this update adds
 
-Upload/commit these root items to the existing GitHub repository:
+- `/ai-inventory` — server-rendered inventory page for tawk.to AI Assist crawling.
+- `/ai-inventory.txt` — crawler-friendly plain-text live inventory.
+- `/api/ai-inventory` — structured live JSON for a tawk.to custom API integration.
+- Available and sold accounts are separated clearly.
+- Explicit AI rules prevent sold-stock and price hallucinations.
+- Optional query filters: `status`, `type`, `q`, and `limit`.
 
-- `public/`
-- `src/`
-- `package.json`
-- `README.md`
-- `wrangler.jsonc`
+## No Cloudflare reconfiguration
 
-Cloudflare deploys automatically from `main` with `npx wrangler deploy`.
+This update keeps the existing Worker, domain, KV binding, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, GitHub connection, and all saved KV data. Upload the five root items to the existing GitHub project and commit to `main`.
 
-## One required Cloudflare setting
+## tawk.to setup
 
-Open **Workers & Pages → holy-tooth-c11a → Settings → Variables and Secrets**.
+The simplest supported setup is to add this public website source:
 
-Add a **Secret** (not plain text):
+`https://www.salesmanservices.com/ai-inventory`
 
-- Name: `ADMIN_PASSWORD`
-- Value: your private admin password
+Then configure tawk.to AI Assist's website re-crawl schedule. For immediate per-conversation data, use the JSON endpoint in a custom API integration:
 
-Deploy/save the secret. No Cloudflare Zero Trust or Access application is required.
+`https://www.salesmanservices.com/api/ai-inventory?status=available`
 
-## Test
-
-1. Open `/api/health` — it should show `version: 4`, `auth: "password"`, and `adminConfigured: true`.
-2. Open `/admin` — enter your password.
-3. Make a small change and click **Save changes**.
-
-## Security included
-
-- Secure HttpOnly session cookie
-- 12-hour sessions
-- SameSite=Strict
-- Origin checks for write requests
-- Rate limiting after repeated failed logins
-- Automatic KV backup before every save and restore
+See `TAWK_AI_LIVE_INVENTORY_SETUP.txt` for exact instructions and a ready-to-paste AI rule block.

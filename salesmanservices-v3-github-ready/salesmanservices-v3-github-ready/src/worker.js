@@ -64,20 +64,30 @@ async function createSession(secret) {
   return `${payload}.${await hmac(secret, payload)}`;
 }
 
-async function validSession(request, env) {
-  const secret = String(env.ADMIN_PASSWORD || "");
-  if (!secret) return false;
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
-  if (!match) return false;
-  const token = decodeURIComponent(match[1]);
-  const parts = token.split(".");
+async function validateToken(token, secret) {
+  if (!token || !secret) return false;
+  const parts = String(token).split(".");
   if (parts.length !== 3) return false;
   const payload = `${parts[0]}.${parts[1]}`;
   const expected = await hmac(secret, payload);
   if (!constantTimeEqual(parts[2], expected)) return false;
   const expires = Number(parts[0]);
   return Number.isFinite(expires) && expires > Date.now();
+}
+
+async function validSession(request, env) {
+  const secret = String(env.ADMIN_PASSWORD || "");
+  if (!secret) return false;
+
+  const cookie = request.headers.get("Cookie") || "";
+  const match = cookie.match(new RegExp(`(?:^|;\s*)${SESSION_COOKIE}=([^;]+)`));
+  if (match && await validateToken(decodeURIComponent(match[1]), secret)) return true;
+
+  const authorization = request.headers.get("Authorization") || "";
+  if (authorization.toLowerCase().startsWith("bearer ")) {
+    return validateToken(authorization.slice(7).trim(), secret);
+  }
+  return false;
 }
 
 function sessionCookie(token) {
@@ -164,6 +174,125 @@ async function listBackups(env) {
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
+
+function publicAccount(account) {
+  const status = String(account?.status || "available").toLowerCase() === "sold" ? "sold" : "available";
+  return {
+    id: String(account?.id || ""),
+    type: String(account?.type || "Account"),
+    title: String(account?.title || "Untitled account"),
+    price: account?.price ?? null,
+    currency: String(account?.currency || "EUR"),
+    status,
+    tags: Array.isArray(account?.tags) ? account.tags.map(String).slice(0, 20) : [],
+    description: String(account?.description || ""),
+    image: String(account?.image || ""),
+    secondImage: String(account?.secondImage || ""),
+    buy: String(account?.buy || ""),
+    button: String(account?.button || ""),
+    soldDate: String(account?.soldDate || "")
+  };
+}
+
+function aiInventoryPayload(data, url) {
+  const accounts = Array.isArray(data.accounts) ? data.accounts.map(publicAccount) : [];
+  const typeFilter = String(url.searchParams.get("type") || "").trim().toLowerCase();
+  const query = String(url.searchParams.get("q") || "").trim().toLowerCase();
+  const requestedStatus = String(url.searchParams.get("status") || "all").trim().toLowerCase();
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 100, 1), 500);
+
+  const filtered = accounts.filter((account) => {
+    if (requestedStatus === "available" && account.status !== "available") return false;
+    if (requestedStatus === "sold" && account.status !== "sold") return false;
+    if (typeFilter && account.type.toLowerCase() !== typeFilter) return false;
+    if (query) {
+      const haystack = [account.title, account.type, account.description, ...account.tags].join(" ").toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    return true;
+  }).slice(0, limit);
+
+  const availableAccounts = filtered.filter((account) => account.status === "available");
+  const soldAccounts = filtered.filter((account) => account.status === "sold");
+  const allAvailable = accounts.filter((account) => account.status === "available");
+  const types = {};
+  for (const account of allAvailable) types[account.type] = (types[account.type] || 0) + 1;
+
+  return {
+    source: "Salesman Services live inventory",
+    generatedAt: new Date().toISOString(),
+    inventoryUpdatedAt: data?.meta?.updatedAt || null,
+    availableCount: allAvailable.length,
+    soldCount: accounts.filter((account) => account.status === "sold").length,
+    availableByType: types,
+    accounts: filtered,
+    availableAccounts,
+    soldAccounts,
+    instructions: [
+      "Recommend only accounts whose status is available.",
+      "Never offer, reserve, or quote a sold account as available.",
+      "Use the listed price only when it is present; otherwise direct the visitor to Discord for a quote.",
+      "Do not invent stock, prices, discounts, stats, quests, or account history.",
+      "For purchase, negotiation, or a human agent, direct the visitor to the listed buy link or the Salesman Services Discord."
+    ],
+    contact: {
+      discord: String(data?.settings?.discord || "https://discord.gg/HkUCNNQtmG"),
+      sellapp: String(data?.settings?.sellapp || "https://salesman.sell.app/")
+    }
+  };
+}
+
+function aiInventoryText(payload) {
+  const lines = [
+    "SALESMAN SERVICES — LIVE ACCOUNT INVENTORY",
+    `Generated: ${payload.generatedAt}`,
+    payload.inventoryUpdatedAt ? `Inventory last changed: ${payload.inventoryUpdatedAt}` : "Inventory last changed: not recorded",
+    `Available accounts: ${payload.availableCount}`,
+    `Sold accounts retained for history: ${payload.soldCount}`,
+    "",
+    "MANDATORY AI RULES",
+    ...payload.instructions.map((rule, index) => `${index + 1}. ${rule}`),
+    "",
+    "CURRENTLY AVAILABLE"
+  ];
+
+  if (!payload.availableAccounts.length) lines.push("No matching available accounts are currently listed.");
+  for (const account of payload.availableAccounts) {
+    lines.push(`- ${account.title}`);
+    lines.push(`  Type: ${account.type}`);
+    lines.push(`  Status: AVAILABLE`);
+    lines.push(`  Price: ${account.price === null || account.price === "" ? "Contact Discord" : `${account.price} ${account.currency}`}`);
+    if (account.tags.length) lines.push(`  Tags: ${account.tags.join(", ")}`);
+    if (account.description) lines.push(`  Description: ${account.description}`);
+    if (account.buy) lines.push(`  Purchase/contact link: ${account.buy}`);
+  }
+
+  lines.push("", "SOLD — DO NOT OFFER AS AVAILABLE");
+  if (!payload.soldAccounts.length) lines.push("No matching sold accounts are listed.");
+  for (const account of payload.soldAccounts) {
+    lines.push(`- ${account.title} — SOLD${account.soldDate ? ` (${account.soldDate})` : ""}`);
+  }
+
+  lines.push("", `Discord: ${payload.contact.discord}`, `SellApp: ${payload.contact.sellapp}`);
+  return lines.join("\n");
+}
+
+function aiInventoryHtml(payload) {
+  const escape = (value) => String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+  const available = payload.availableAccounts.map((account) => `
+    <article>
+      <h2>${escape(account.title)}</h2>
+      <p><strong>Status:</strong> AVAILABLE</p>
+      <p><strong>Type:</strong> ${escape(account.type)}</p>
+      <p><strong>Price:</strong> ${account.price === null || account.price === "" ? "Contact Discord" : `${escape(account.price)} ${escape(account.currency)}`}</p>
+      ${account.tags.length ? `<p><strong>Tags:</strong> ${escape(account.tags.join(", "))}</p>` : ""}
+      ${account.description ? `<p>${escape(account.description)}</p>` : ""}
+      ${account.buy ? `<p><a href="${escape(account.buy)}">Purchase or ask about this account</a></p>` : ""}
+    </article>`).join("") || "<p>No available accounts are currently listed.</p>";
+  const sold = payload.soldAccounts.map((account) => `<li>${escape(account.title)} — SOLD${account.soldDate ? ` (${escape(account.soldDate)})` : ""}</li>`).join("") || "<li>No sold accounts are currently listed.</li>";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Salesman Services Live Inventory</title><meta name="description" content="Live account inventory for Salesman Services AI Assist."><style>body{max-width:900px;margin:40px auto;padding:0 20px;font:16px/1.55 system-ui;background:#0d0e12;color:#f4f4f5}article{border:1px solid #353743;border-radius:12px;padding:18px;margin:16px 0;background:#15161c}a{color:#e5b63f}code{background:#202129;padding:2px 6px;border-radius:5px}.muted{color:#aaa}li{margin:8px 0}</style></head><body><h1>Salesman Services — Live Inventory</h1><p class="muted">Generated ${escape(payload.generatedAt)}. This page is generated directly from the live admin inventory.</p><h2>Rules for AI Assist</h2><ol>${payload.instructions.map((rule) => `<li>${escape(rule)}</li>`).join("")}</ol><h2>Currently available (${payload.availableCount})</h2>${available}<h2>Sold — never offer as available</h2><ul>${sold}</ul><p>Discord: <a href="${escape(payload.contact.discord)}">${escape(payload.contact.discord)}</a><br>SellApp: <a href="${escape(payload.contact.sellapp)}">${escape(payload.contact.sellapp)}</a></p></body></html>`;
+}
+
 async function recordEvent(request, env) {
   let body = {};
   try { body = await request.json(); } catch {}
@@ -186,7 +315,34 @@ export default {
     }
 
     if (url.pathname === "/api/health" && request.method === "GET") {
-      return json({ ok: true, kv: true, adminConfigured: Boolean(env.ADMIN_PASSWORD), auth: "password", version: "4.1" });
+      return json({ ok: true, kv: true, adminConfigured: Boolean(env.ADMIN_PASSWORD), auth: "password", version: "4.3" });
+    }
+
+    if ((url.pathname === "/api/ai-inventory" || url.pathname === "/api/ai/inventory") && request.method === "GET") {
+      const data = await getHydratedData(env, url);
+      return json(aiInventoryPayload(data, url), 200, {
+        "cache-control": "public, max-age=15, s-maxage=15",
+        "access-control-allow-origin": "*"
+      });
+    }
+
+    if (url.pathname === "/ai-inventory.txt" && request.method === "GET") {
+      const data = await getHydratedData(env, url);
+      const text = aiInventoryText(aiInventoryPayload(data, url));
+      return new Response(text, { status: 200, headers: {
+        "content-type": "text/plain; charset=UTF-8",
+        "cache-control": "public, max-age=15, s-maxage=15",
+        "x-robots-tag": "index, follow"
+      }});
+    }
+
+    if ((url.pathname === "/ai-inventory" || url.pathname === "/ai-inventory/") && request.method === "GET") {
+      const data = await getHydratedData(env, url);
+      return new Response(aiInventoryHtml(aiInventoryPayload(data, url)), { status: 200, headers: {
+        "content-type": "text/html; charset=UTF-8",
+        "cache-control": "public, max-age=15, s-maxage=15",
+        "x-content-type-options": "nosniff"
+      }});
     }
 
     if (url.pathname === "/api/site-data" && request.method === "GET") {
