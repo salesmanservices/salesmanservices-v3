@@ -1,0 +1,12 @@
+{
+  "name": "salesmanservices-v3",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.26.0"
+  }
+}
