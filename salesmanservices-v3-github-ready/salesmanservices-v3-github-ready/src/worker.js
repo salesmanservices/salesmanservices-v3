@@ -186,7 +186,7 @@ export default {
     }
 
     if (url.pathname === "/api/health" && request.method === "GET") {
-      return json({ ok: true, kv: true, adminConfigured: Boolean(env.ADMIN_PASSWORD), auth: "password", version: 4 });
+      return json({ ok: true, kv: true, adminConfigured: Boolean(env.ADMIN_PASSWORD), auth: "password", version: "4.1" });
     }
 
     if (url.pathname === "/api/site-data" && request.method === "GET") {
@@ -215,7 +215,7 @@ export default {
       }
       await clearLoginState(request, env);
       const token = await createSession(env.ADMIN_PASSWORD);
-      return json({ ok: true }, 200, { "set-cookie": sessionCookie(token) });
+      return json({ ok: true, token }, 200, { "set-cookie": sessionCookie(token) });
     }
 
     if (url.pathname === "/api/admin/logout" && request.method === "POST") {
