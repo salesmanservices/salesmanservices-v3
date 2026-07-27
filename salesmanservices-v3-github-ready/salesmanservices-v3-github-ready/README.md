@@ -19,3 +19,4 @@ Cloudflare Worker + Static Assets project.
 ## Health check
 
 After deployment, open `/api/health`.
+
