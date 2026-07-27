@@ -1,22 +1,41 @@
-# Salesman Services V3
+# Salesman Services V4 — Password Admin
 
-Cloudflare Worker + Static Assets project.
+This version replaces Cloudflare Access with a built-in secure password login.
 
-## Before first deployment
+## Deploy
 
-1. In Cloudflare, open Workers KV > SALESMAN_DATA > Settings and copy the Namespace ID.
-2. In `wrangler.jsonc`, replace `REPLACE_WITH_YOUR_KV_NAMESPACE_ID` with that ID.
-3. In Cloudflare Worker settings, add an `ADMIN_EMAIL` variable with the email allowed to use `/admin`.
-4. Protect `/admin*` and `/api/admin/*` with Cloudflare Access.
+Upload/commit these root items to the existing GitHub repository:
 
-## Cloudflare Git build settings
+- `public/`
+- `src/`
+- `package.json`
+- `README.md`
+- `wrangler.jsonc`
 
-- Production branch: `main`
-- Build command: leave blank
-- Deploy command: `npx wrangler deploy`
-- Root directory: `/`
+Cloudflare deploys automatically from `main` with `npx wrangler deploy`.
 
-## Health check
+## One required Cloudflare setting
 
-After deployment, open `/api/health`.
+Open **Workers & Pages → holy-tooth-c11a → Settings → Variables and Secrets**.
 
+Add a **Secret** (not plain text):
+
+- Name: `ADMIN_PASSWORD`
+- Value: your private admin password
+
+Deploy/save the secret. No Cloudflare Zero Trust or Access application is required.
+
+## Test
+
+1. Open `/api/health` — it should show `version: 4`, `auth: "password"`, and `adminConfigured: true`.
+2. Open `/admin` — enter your password.
+3. Make a small change and click **Save changes**.
+
+## Security included
+
+- Secure HttpOnly session cookie
+- 12-hour sessions
+- SameSite=Strict
+- Origin checks for write requests
+- Rate limiting after repeated failed logins
+- Automatic KV backup before every save and restore
