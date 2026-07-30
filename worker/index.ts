@@ -165,6 +165,7 @@ type SiteState = {
     heroTitle: string;
     heroText: string;
     footerNote: string;
+    vouchCount: string;
   };
   pricing?: Record<string, unknown>;
 };
@@ -534,6 +535,7 @@ function defaultState(accounts: Account[], pricing?: Record<string, unknown>): S
       heroTitle: "Your grind, handled professionally.",
       heroText: "Browse live stock, calculate your service and speak directly with the team.",
       footerNote: "Not affiliated with Jagex Ltd.",
+      vouchCount: "100+",
     },
     pricing,
   };
@@ -743,8 +745,29 @@ function publicAccount(account: Account) {
 }
 
 function publicState(state: SiteState) {
+  const activeReservationByAccount = new Map<string, Order>();
+  const current = Date.now();
+  for (const order of state.orders || []) {
+    const accountId = asString(order.accountId);
+    if (!accountId) continue;
+    const expiresAt = asString(order.expiresAt);
+    const active = order.status === "pending_payment" && expiresAt && Date.parse(expiresAt) > current;
+    if (active) activeReservationByAccount.set(accountId, order);
+  }
+
+  const publicAccounts = state.accounts.map((account) => {
+    const activeOrder = activeReservationByAccount.get(asString(account.id));
+    if (!activeOrder) return publicAccount(account);
+    return publicAccount({
+      ...account,
+      status: "reserved",
+      reservedUntil: asString(activeOrder.expiresAt),
+      reservedOrderId: asString(activeOrder.id),
+    });
+  });
+
   return {
-    accounts: state.accounts.map(publicAccount),
+    accounts: publicAccounts,
     reviews: state.reviews,
     announcement: state.announcement,
     content: state.content,

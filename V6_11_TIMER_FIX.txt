@@ -1,0 +1,6 @@
+Salesman Services V6.11 — Reserved Countdown Data Fix
+
+- Public inventory now derives reservation expiry directly from the active pending order.
+- This prevents a reserved account from showing as unavailable without a visible timer.
+- Frontend cache version bumped to 6.11.0.
+- Existing Cloudflare keep_vars configuration preserved.

@@ -76,7 +76,7 @@
 <a class="button ghost" href="#calculator">Build an order</a>
 </div>
 <div class="hero-proof">
-<div><b>100+</b><span>Vouches</span></div>
+<div><b data-vouch-count>100+</b><span>Vouches</span></div>
 <div><b>Live</b><span>AI &amp; human chat</span></div>
 <div><b>8</b><span>Accounts in stock</span></div>
 </div>
@@ -199,7 +199,7 @@
 </div>
 </div>
 <div class="trust-metrics">
-<div><b>100+</b><span>Combined vouches</span></div>
+<div><b data-vouch-count>100+</b><span>Combined vouches</span></div>
 <div><b>Active</b><span>Accounts successfully sold</span></div>
 <div><b>Trusted</b><span>Sythe seller</span></div>
 <div><b>Direct</b><span>Discord owner support</span></div>
@@ -227,11 +227,12 @@
 </article>
 <article class="feedback-card feedback-highlight reveal">
 <span class="feedback-badge">TRUST</span>
-<h3>100+ combined vouches</h3>
-<p>Salesman Services has collected more than 100 vouches across Sythe and Discord, backed by direct owner support and clear order confirmation.</p>
+<h3><span data-vouch-count>100+</span> combined vouches</h3>
+<p>Salesman Services has collected <span data-vouch-description>more than 100 vouches</span> across Sythe and Discord, backed by direct owner support and clear order confirmation.</p>
 <div class="feedback-proof"><span>✓ Public history</span><span>✓ Real screenshots</span><span>✓ Private ticket support</span></div>
 </article>
 </div>
+<div class="customer-review-grid" id="approvedFeedback" aria-live="polite"></div>
 <div class="feedback-cta reveal"><div><b>Already ordered from us?</b><span>Your feedback helps future customers buy with confidence.</span></div><a class="button primary" href="https://discord.gg/xDSvKT3ThQ" rel="noopener" target="_blank">Leave feedback on Discord</a></div>
 </section>
 <section class="section faq-section" id="faq">
@@ -267,7 +268,7 @@
 <div class="toast" id="toast">Order request copied</div>
 <script src="/assets/translations.js"></script>
 <script src="/assets/analytics.js"></script>
-<script src="/assets/site.js?v=6.6.0"></script>
+<script src="/assets/site.js?v=6.11.0"></script>
 <!--Start of Tawk.to Script-->
 <script type="text/javascript">
 var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();

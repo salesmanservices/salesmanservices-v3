@@ -249,6 +249,20 @@ function updateCapePrice(){
  $("#capeGpPrice").textContent=row?fmtGp(row.usd/pricing.displayGpRate):"—";
 }
 
+
+function escHtml(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function applyManagedReputation(data){
+ const count=String(data.content?.vouchCount||"100+").trim()||"100+";
+ document.querySelectorAll('[data-vouch-count]').forEach(el=>el.textContent=count);
+ document.querySelectorAll('[data-vouch-description]').forEach(el=>el.textContent=`${count} combined vouches`);
+ if(data.settings?.sythe)document.querySelectorAll('a[href*="sythe.org"]').forEach(a=>a.href=data.settings.sythe);
+ const holder=document.querySelector('#approvedFeedback');
+ if(!holder)return;
+ const visible=(Array.isArray(data.reviews)?data.reviews:[]).filter(r=>r.visible!==false&&String(r.text||'').trim()).slice(0,6);
+ holder.innerHTML=visible.map(r=>`<article class="customer-review-card reveal"><div class="customer-review-head"><b>${escHtml(r.name||'Customer')}</b><span>${escHtml(r.source||'Feedback')}</span></div><p>${escHtml(r.text||'')}</p>${r.rating?`<small>${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||5)))}</small>`:''}</article>`).join('');
+ holder.hidden=!visible.length;
+}
+
 async function loadManagedSiteData(){
  try{
   const response=await fetch('/api/site-data',{headers:{accept:'application/json'}});
@@ -257,6 +271,7 @@ async function loadManagedSiteData(){
   if(Array.isArray(data.accounts))accounts=data.accounts.filter(a=>a.status!=="sold");
   if(Array.isArray(data.accounts))soldAccounts=data.accounts.filter(a=>a.status==="sold");
   if(data.settings){document.querySelectorAll('a[href*="discord.gg"]').forEach(a=>{if(data.settings.discord)a.href=data.settings.discord})}
+  applyManagedReputation(data);
   if(data.announcement?.enabled&&data.announcement.text){window.setTimeout(()=>notify(data.announcement.text),700)}
  }catch(err){console.info('Using bundled website data. Admin API is not configured yet.')}
 }
