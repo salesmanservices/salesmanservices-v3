@@ -1,0 +1,11 @@
+Salesman Services V6.9 — Final Buyer Experience Polish
+
+Added:
+- Timeless marketplace trust strip above live inventory
+- Live remaining-time countdown on reserved account cards and modal
+- Improved Order Created success presentation
+- One-click copy buttons for order ID, crypto amount and wallet address
+- Live MM:SS order-expiry countdown
+- Clear warning to send the exact unique crypto amount
+
+No changes to admin data, encrypted vault records, payment detection, inventory IDs or Cloudflare bindings.

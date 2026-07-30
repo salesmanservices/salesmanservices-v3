@@ -608,3 +608,12 @@ body{overflow-x:hidden}
 .header nav,.language-picker{overflow:visible!important}
 .language-menu{z-index:1200!important}
 .language-menu.open{display:grid!important}
+
+/* Final buyer-confidence polish */
+.marketplace-trust{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0 18px;padding:16px 18px;border:1px solid rgba(220,181,90,.25);border-radius:15px;background:rgba(16,17,22,.88);box-shadow:0 16px 45px rgba(0,0,0,.2)}
+.marketplace-trust span{display:flex;align-items:center;gap:8px;color:#f2eee4;font-size:13px;font-weight:700}
+.account-reservation{display:flex;flex-direction:column;gap:3px;margin-top:13px;padding:11px 13px;border:1px solid rgba(220,181,90,.3);border-radius:10px;background:rgba(220,181,90,.075);color:#e7c46e;font-size:12px;font-weight:800}
+.account-reservation small{color:var(--muted);font-weight:600}
+.button.disabled-reserved{pointer-events:none;opacity:.62;filter:saturate(.55)}
+@media(max-width:900px){.marketplace-trust{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.marketplace-trust{grid-template-columns:1fr}.marketplace-trust span{font-size:12px}}
