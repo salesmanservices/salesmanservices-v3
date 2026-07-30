@@ -1,0 +1,115 @@
+[
+  {
+    "id": "zerker-1",
+    "type": "Zerker",
+    "title": "50 Attack / 45 Defence Zerker #1",
+    "price": 120,
+    "image": "assets/accounts/zerker-1.png",
+    "tags": [
+      "50 Attack",
+      "45 Defence",
+      "PK Ready",
+      "Negotiable"
+    ],
+    "description": "50 Attack and 45 Defence Zerker shown with its correct original stats, equipment and quest progress.",
+    "buy": "https://salesman.sell.app/product/50-attack-zerker?store=salesman&locale=en&quantity=1",
+    "button": "Buy securely"
+  },
+  {
+    "id": "med-1",
+    "type": "Med Main",
+    "title": "60 Attack / 70 Defence Med Main #1",
+    "price": 140,
+    "image": "assets/accounts/med-main-1.png",
+    "tags": [
+      "60 Attack",
+      "70 Defence",
+      "Piety",
+      "PK / PvM"
+    ],
+    "description": "60 Attack and 70 Defence Med Main shown with the correct stats, equipment and quest screenshot.",
+    "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
+    "button": "Buy securely"
+  },
+  {
+    "id": "med-2",
+    "type": "Med Main",
+    "title": "60 Attack / 70 Defence Med Main #2",
+    "price": 140,
+    "image": "assets/accounts/med-main-2.png",
+    "tags": [
+      "60 Attack",
+      "70 Defence",
+      "Piety",
+      "PK / PvM"
+    ],
+    "description": "Second 60 Attack and 70 Defence Med Main using the correct original account screenshot.",
+    "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
+    "button": "Buy securely"
+  },
+  {
+    "id": "pure",
+    "type": "Pure",
+    "title": "1 Defence Pure",
+    "price": 80,
+    "image": "assets/accounts/pure-stats.png",
+    "secondImage": "assets/accounts/pure-inventory.png",
+    "tags": [
+      "1 Defence",
+      "Pure",
+      "Transparent History",
+      "Negotiable"
+    ],
+    "description": "1 Defence Pure shown with the correct stats and inventory screenshots. Previous temporary ban has ended and is no longer active.",
+    "buy": "https://discord.gg/HkUCNNQtmG",
+    "button": "Reserve on Discord"
+  },
+  {
+    "id": "thieving",
+    "type": "Skiller",
+    "title": "600+ Total / 99 Thieving",
+    "price": 35,
+    "image": "assets/accounts/thieving-99.png",
+    "tags": [
+      "99 Thieving",
+      "600+ Total",
+      "Skiller",
+      "Budget"
+    ],
+    "description": "Specialist skiller with 99 Thieving and more than 600 total level.",
+    "buy": "https://salesman.sell.app/product/product-600-total-99-thieving-account?store=salesman&locale=en&quantity=1",
+    "button": "Buy securely"
+  },
+  {
+    "id": "mining",
+    "type": "Skiller",
+    "title": "85 Mining Account",
+    "price": 5,
+    "image": "assets/accounts/mining-85.png",
+    "tags": [
+      "85 Mining",
+      "Starter",
+      "Skiller",
+      "Budget"
+    ],
+    "description": "Low-cost specialist account with 85 Mining. Contact Discord to confirm availability.",
+    "buy": "https://discord.gg/HkUCNNQtmG",
+    "button": "Buy through Discord"
+  },
+  {
+    "id": "woodcutting",
+    "type": "Skiller",
+    "title": "99 Woodcutting Skiller",
+    "price": 5,
+    "image": "assets/accounts/woodcutting-99.png",
+    "tags": [
+      "99 Woodcutting",
+      "Starter",
+      "Skiller",
+      "Budget"
+    ],
+    "description": "Starter skiller with 99 Woodcutting using the correct original account screenshot.",
+    "buy": "https://salesman.sell.app/product/product-skiller-99-woodcutting?store=salesman&locale=en&quantity=1",
+    "button": "Buy securely"
+  }
+]

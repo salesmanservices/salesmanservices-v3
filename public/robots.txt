@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://salesmanservices.com/sitemap.xml
+
+User-agent: Tawktobot-AIAssistant/1.0
+Allow: /ai-inventory
+Allow: /ai-inventory.txt
+Allow: /api/ai-inventory
