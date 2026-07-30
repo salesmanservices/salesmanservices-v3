@@ -13,7 +13,8 @@
     ],
     "description": "50 Attack and 45 Defence Zerker shown with its correct original stats, equipment and quest progress.",
     "buy": "https://salesman.sell.app/product/50-attack-zerker?store=salesman&locale=en&quantity=1",
-    "button": "Buy securely"
+    "button": "Buy securely",
+    "saleMethod": "crypto"
   },
   {
     "id": "med-1",
@@ -29,7 +30,8 @@
     ],
     "description": "60 Attack and 70 Defence Med Main shown with the correct stats, equipment and quest screenshot.",
     "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
-    "button": "Buy securely"
+    "button": "Buy securely",
+    "saleMethod": "crypto"
   },
   {
     "id": "med-2",
@@ -45,7 +47,8 @@
     ],
     "description": "Second 60 Attack and 70 Defence Med Main using the correct original account screenshot.",
     "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
-    "button": "Buy securely"
+    "button": "Buy securely",
+    "saleMethod": "crypto"
   },
   {
     "id": "pure",
@@ -62,7 +65,8 @@
     ],
     "description": "1 Defence Pure shown with the correct stats and inventory screenshots. Previous temporary ban has ended and is no longer active.",
     "buy": "https://discord.gg/HkUCNNQtmG",
-    "button": "Reserve on Discord"
+    "button": "Buy securely",
+    "saleMethod": "crypto"
   },
   {
     "id": "thieving",
@@ -77,8 +81,9 @@
       "Budget"
     ],
     "description": "Specialist skiller with 99 Thieving and more than 600 total level.",
-    "buy": "https://salesman.sell.app/product/product-600-total-99-thieving-account?store=salesman&locale=en&quantity=1",
-    "button": "Buy securely"
+    "buy": "https://discord.gg/xDSvKT3ThQ",
+    "button": "Buy through Discord",
+    "saleMethod": "discord"
   },
   {
     "id": "mining",
@@ -93,8 +98,9 @@
       "Budget"
     ],
     "description": "Low-cost specialist account with 85 Mining. Contact Discord to confirm availability.",
-    "buy": "https://discord.gg/HkUCNNQtmG",
-    "button": "Buy through Discord"
+    "buy": "https://discord.gg/xDSvKT3ThQ",
+    "button": "Buy through Discord",
+    "saleMethod": "discord"
   },
   {
     "id": "woodcutting",
@@ -109,7 +115,8 @@
       "Budget"
     ],
     "description": "Starter skiller with 99 Woodcutting using the correct original account screenshot.",
-    "buy": "https://salesman.sell.app/product/product-skiller-99-woodcutting?store=salesman&locale=en&quantity=1",
-    "button": "Buy securely"
+    "buy": "https://discord.gg/xDSvKT3ThQ",
+    "button": "Buy through Discord",
+    "saleMethod": "discord"
   }
 ]

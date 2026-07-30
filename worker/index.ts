@@ -53,6 +53,7 @@ type Account = {
   secondImage?: string;
   buy?: string;
   button?: string;
+  saleMethod?: "crypto" | "discord";
   soldDate?: string;
   notes?: string;
   reservedUntil?: string;
@@ -385,10 +386,26 @@ function asNumber(value: unknown, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function defaultSaleMethod(account: Account): "crypto" | "discord" {
+  if (account.saleMethod === "crypto" || account.saleMethod === "discord") return account.saleMethod;
+  const id = asString(account.id).toLowerCase();
+  const type = asString(account.type).toLowerCase();
+  const title = asString(account.title).toLowerCase();
+  if (id === "pure" || title.includes("1 defence pure")) return "crypto";
+  if (["thieving", "woodcutting", "mining"].includes(id)) return "discord";
+  if (["skiller", "woodcutting", "thieving", "mining", "600 ttl", "600 total"].some(term => type.includes(term) || title.includes(term))) return "discord";
+  return "crypto";
+}
+
+function normalizeAccountSaleMethod(account: Account): Account {
+  const saleMethod = defaultSaleMethod(account);
+  return { ...account, saleMethod, buy: saleMethod === "discord" ? DISCORD : asString(account.buy), button: saleMethod === "discord" ? "Buy through Discord" : "Buy securely" };
+}
+
 function defaultState(accounts: Account[], pricing?: Record<string, unknown>): SiteState {
   return {
     schemaVersion: 5,
-    accounts: accounts.map((account) => ({
+    accounts: accounts.map((account) => normalizeAccountSaleMethod({
       ...account,
       status: String(account.status || "available").toLowerCase() === "sold"
         ? "sold"
@@ -433,7 +450,7 @@ function normalizeState(input: unknown, fallback: SiteState): SiteState {
     ...fallback,
     ...value,
     schemaVersion: 5,
-    accounts: Array.isArray(value.accounts) ? value.accounts : fallback.accounts,
+    accounts: (Array.isArray(value.accounts) ? value.accounts : fallback.accounts).map(normalizeAccountSaleMethod),
     reviews: Array.isArray(value.reviews) ? value.reviews : [],
     orders: Array.isArray(value.orders) ? value.orders : [],
     customers: Array.isArray(value.customers) ? value.customers : [],
@@ -555,11 +572,7 @@ async function logActivity(
 
 
 function checkoutEligible(account: Account) {
-  const type = asString(account.type).toLowerCase();
-  const title = asString(account.title).toLowerCase();
-  const discordOnly = ["skiller", "woodcutting", "thieving", "600 ttl", "600 total"].some(term => type.includes(term) || title.includes(term));
-  if (discordOnly) return false;
-  return type.includes("zerker") || type.includes("pure") || type.includes("med") || title.includes("zerker") || title.includes("pure") || title.includes("med main");
+  return defaultSaleMethod(account) === "crypto";
 }
 
 function releaseExpiredReservations(state: SiteState) {
@@ -601,6 +614,7 @@ function publicAccount(account: Account) {
     secondImage: asString(account.secondImage),
     buy: asString(account.buy),
     button: asString(account.button),
+    saleMethod: defaultSaleMethod(account),
     soldDate: asString(account.soldDate),
   };
 }
