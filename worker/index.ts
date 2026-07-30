@@ -737,6 +737,7 @@ function publicAccount(account: Account) {
       : `/checkout?account=${encodeURIComponent(asString(account.id))}`,
     button: defaultSaleMethod(account) === "discord" ? "Buy through Discord" : "Buy with BTC / LTC",
     saleMethod: defaultSaleMethod(account),
+    reservedUntil: asString(account.reservedUntil),
     soldDate: asString(account.soldDate),
   };
 }
