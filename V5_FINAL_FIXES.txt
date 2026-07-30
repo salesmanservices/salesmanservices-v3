@@ -1,0 +1,16 @@
+Salesman Services V5 Final Cloudflare Fixes
+
+Included fixes:
+- package.json build command uses: vinext build
+- Removed ChatGPT Sites hosting manifest dependency from vite.config.ts
+- Removed obsolete Sites Vite plugin
+- /admin redirects to /admin/
+- /admin/ serves /admin/index.html
+- /admin/index.html remains supported
+
+Cloudflare settings:
+- Root directory: /
+- Build command: leave empty
+- Deploy command: npx wrangler deploy
+
+Do not upload an older V5 ZIP over this version.

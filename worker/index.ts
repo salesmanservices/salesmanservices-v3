@@ -903,6 +903,18 @@ const worker = {
       return handleAdmin(request, env, url);
     }
 
+    // Clean admin URL: /admin redirects to /admin/, and /admin/ serves
+    // the existing static admin application at /admin/index.html.
+    if (request.method === "GET" && url.pathname === "/admin") {
+      return Response.redirect(new URL("/admin/", request.url).toString(), 308);
+    }
+
+    if (request.method === "GET" && url.pathname === "/admin/") {
+      return env.ASSETS.fetch(
+        new Request(new URL("/admin/index.html", request.url), request),
+      );
+    }
+
     if (request.method === "GET" && url.pathname.startsWith("/media/")) {
       if (!env.BUCKET) return new Response("Not found", { status: 404 });
       const object = await env.BUCKET.get(url.pathname.slice("/media/".length));
