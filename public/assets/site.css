@@ -620,3 +620,5 @@ body{overflow-x:hidden}
 
 /* Dynamic approved customer feedback */
 .customer-review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}.customer-review-grid[hidden]{display:none}.customer-review-card{padding:22px;border:1px solid rgba(220,181,90,.16);border-radius:17px;background:rgba(10,10,13,.82);box-shadow:0 18px 45px rgba(0,0,0,.22)}.customer-review-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.customer-review-head b{color:#fff;font-size:14px}.customer-review-head span{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--premium-gold)}.customer-review-card p{margin:14px 0 10px;color:var(--muted);line-height:1.7}.customer-review-card small{color:#e8c36a;letter-spacing:.12em}@media(max-width:900px){.customer-review-grid{grid-template-columns:1fr}}
+
+.verified-review-badge{display:inline-flex;margin-top:10px;padding:5px 9px;border:1px solid rgba(232,195,106,.45);border-radius:999px;color:#e8c36a;font-size:.75rem;font-weight:700}

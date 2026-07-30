@@ -1,0 +1,15 @@
+Salesman Services V6.13 Final
+
+NEW: Dynamic payment methods
+- Add, edit, enable, disable, recommend and reorder methods in /admin -> Payment methods.
+- BTC and LTC remain automatic blockchain methods.
+- New manual methods can show payment details and customer instructions.
+- Manual orders reserve the account and wait for admin confirmation.
+- Mark a manual order Paid or Completed in /admin -> Orders and Save changes to trigger credential delivery.
+
+IMPROVED: Verified website reviews
+- Website feedback from completed orders is marked Verified Purchase.
+- Admin can approve/hide, feature, set rating and manage review badges.
+- Featured reviews appear first on the homepage.
+
+All V6.12 features, dynamic vouches, timers, vault, checkout and Cloudflare settings are preserved.

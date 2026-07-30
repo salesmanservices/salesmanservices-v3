@@ -258,8 +258,8 @@ function applyManagedReputation(data){
  if(data.settings?.sythe)document.querySelectorAll('a[href*="sythe.org"]').forEach(a=>a.href=data.settings.sythe);
  const holder=document.querySelector('#approvedFeedback');
  if(!holder)return;
- const visible=(Array.isArray(data.reviews)?data.reviews:[]).filter(r=>r.visible!==false&&String(r.text||'').trim()).slice(0,6);
- holder.innerHTML=visible.map(r=>`<article class="customer-review-card reveal"><div class="customer-review-head"><b>${escHtml(r.name||'Customer')}</b><span>${escHtml(r.source||'Feedback')}</span></div><p>${escHtml(r.text||'')}</p>${r.rating?`<small>${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||5)))}</small>`:''}</article>`).join('');
+ const visible=(Array.isArray(data.reviews)?data.reviews:[]).filter(r=>r.visible!==false&&String(r.text||'').trim()).sort((a,b)=>Number(Boolean(b.featured))-Number(Boolean(a.featured))).slice(0,6);
+ holder.innerHTML=visible.map(r=>`<article class="customer-review-card reveal"><div class="customer-review-head"><b>${escHtml(r.name||'Customer')}</b><span>${escHtml(r.source||'Feedback')}</span></div><p>${escHtml(r.text||'')}</p>${r.rating?`<small>${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||5)))}</small>`:''}${r.verifiedPurchase?`<div class="verified-review-badge">✓ Verified Purchase</div>`:''}</article>`).join('');
  holder.hidden=!visible.length;
 }
 

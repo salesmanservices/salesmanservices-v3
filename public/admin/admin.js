@@ -10,6 +10,7 @@ const SESSION_KEY = "salesman_admin_token";
 let data = {
   accounts: [],
   reviews: [],
+  paymentMethods: [],
   orders: [],
   customers: [],
   workers: [],
@@ -61,6 +62,7 @@ async function load() {
     ...payload,
     accounts: payload.accounts || [],
     reviews: payload.reviews || [],
+    paymentMethods: payload.paymentMethods || [],
     orders: payload.orders || [],
     customers: payload.customers || [],
     workers: payload.workers || [],
@@ -149,6 +151,7 @@ function render(tab) {
     workers: renderWorkers,
     analytics: renderAnalytics,
     reviews: renderReviews,
+    payments: renderPayments,
     content: renderContent,
     export: renderExport,
   })[tab]?.();
@@ -331,9 +334,17 @@ function barRows(rows) {
 }
 
 function renderReviews() {
-  panel.innerHTML = `<div class="toolbar"><div><span class="eyebrow">Social proof</span><h1>Reviews</h1><p class="muted">Publish only feedback you have permission to show.</p></div><button class="action" id="addReview">+ Add review</button></div><div class="review-grid">${data.reviews.map((review, index) => `<article class="review-card"><div class="review-head"><b>${esc(review.name || "Customer")}</b><button class="icon-button danger" data-delete-review="${index}">Delete</button></div><label>Source<input data-review="${index}" data-key="source" value="${esc(review.source || "Discord")}"></label><label>Feedback<textarea data-review="${index}" data-key="text">${esc(review.text || "")}</textarea></label><label class="check"><input data-review="${index}" data-key="visible" type="checkbox" ${review.visible !== false ? "checked" : ""}> Visible</label></article>`).join("")}</div>`;
-  document.querySelector("#addReview").onclick = () => { data.reviews.unshift({ id: uid("review"), name: "Customer", source: "Discord", text: "Great service.", visible: true }); renderReviews(); };
+  panel.innerHTML = `<div class="toolbar"><div><span class="eyebrow">Verified social proof</span><h1>Reviews</h1><p class="muted">Website submissions are verified against completed orders. Approve only feedback you want shown publicly.</p></div><button class="action" id="addReview">+ Add review</button></div><div class="review-grid">${data.reviews.map((review, index) => `<article class="review-card"><div class="review-head"><b>${esc(review.name || "Customer")}</b><button class="icon-button danger" data-delete-review="${index}">Delete</button></div><label>Source<input data-review="${index}" data-key="source" value="${esc(review.source || "Discord")}"></label><label>Rating<select data-review="${index}" data-key="rating">${[5,4,3,2,1].map(n=>`<option value="${n}" ${Number(review.rating||5)===n?'selected':''}>${n} star${n===1?'':'s'}</option>`).join('')}</select></label><label class="wide">Feedback<textarea data-review="${index}" data-key="text">${esc(review.text || "")}</textarea></label><label class="check"><input data-review="${index}" data-key="visible" type="checkbox" ${review.visible !== false ? "checked" : ""}> Visible</label><label class="check"><input data-review="${index}" data-key="featured" type="checkbox" ${review.featured ? "checked" : ""}> Featured</label><label class="check"><input data-review="${index}" data-key="verifiedPurchase" type="checkbox" ${review.verifiedPurchase ? "checked" : ""}> Verified purchase</label>${review.orderId ? `<p class="muted wide">Order: ${esc(review.orderId)}</p>` : ''}</article>`).join("")}</div>`;
+  document.querySelector("#addReview").onclick = () => { data.reviews.unshift({ id: uid("review"), name: "Customer", source: "Discord", text: "Great service.", rating: 5, visible: true, featured: false, verifiedPurchase: false }); renderReviews(); };
   document.querySelectorAll("[data-delete-review]").forEach((button) => (button.onclick = () => { data.reviews.splice(Number(button.dataset.deleteReview), 1); renderReviews(); }));
+  bindDataInputs();
+}
+
+function renderPayments() {
+  const methods = data.paymentMethods || (data.paymentMethods = []);
+  panel.innerHTML = `<div class="toolbar"><div><span class="eyebrow">Checkout controls</span><h1>Payment methods</h1><p class="muted">Enable, disable and reorder checkout options. Bitcoin and Litecoin support automatic confirmation; other methods wait for your manual approval in Orders.</p></div><button class="action" id="addPayment">+ Add method</button></div><div class="review-grid">${methods.map((method,index)=>`<article class="review-card"><div class="review-head"><b>${esc(method.icon||'💳')} ${esc(method.name||'Payment method')}</b><button class="icon-button danger" data-delete-payment="${index}">Delete</button></div><label>Name<input data-payment="${index}" data-key="name" value="${esc(method.name||'')}"></label><label>Icon / symbol<input data-payment="${index}" data-key="icon" value="${esc(method.icon||'')}"></label><label>Type<select data-payment="${index}" data-key="mode"><option value="automatic" ${method.mode!=='manual'?'selected':''}>Automatic crypto</option><option value="manual" ${method.mode==='manual'?'selected':''}>Manual confirmation</option></select></label><label>Crypto code<select data-payment="${index}" data-key="cryptoCode"><option value="" ${!method.cryptoCode?'selected':''}>None</option><option value="BTC" ${method.cryptoCode==='BTC'?'selected':''}>BTC</option><option value="LTC" ${method.cryptoCode==='LTC'?'selected':''}>LTC</option></select></label><label class="wide">Wallet / payment details<input data-payment="${index}" data-key="paymentDetails" value="${esc(method.paymentDetails||'')}" placeholder="Wallet, username, email or instructions"></label><label class="wide">Customer instructions<textarea data-payment="${index}" data-key="instructions">${esc(method.instructions||'')}</textarea></label><label>Display order<input data-payment="${index}" data-key="sortOrder" type="number" value="${Number(method.sortOrder||index+1)}"></label><label class="check"><input data-payment="${index}" data-key="enabled" type="checkbox" ${method.enabled!==false?'checked':''}> Enabled</label><label class="check"><input data-payment="${index}" data-key="recommended" type="checkbox" ${method.recommended?'checked':''}> Recommended</label></article>`).join('')}</div>`;
+  document.querySelector('#addPayment').onclick=()=>{methods.push({id:uid('payment'),name:'New payment method',icon:'💳',enabled:false,recommended:false,mode:'manual',cryptoCode:'',paymentDetails:'',instructions:'Contact us after sending payment.',sortOrder:methods.length+1});renderPayments();};
+  document.querySelectorAll('[data-delete-payment]').forEach(button=>button.onclick=()=>{if(confirm('Delete this payment method?')){methods.splice(Number(button.dataset.deletePayment),1);renderPayments();}});
   bindDataInputs();
 }
 
@@ -375,7 +386,8 @@ function bindDataInputs() {
   document.querySelectorAll("[data-order][data-key]").forEach((field) => (field.oninput = () => { const item = data.orders[Number(field.dataset.order)]; item[field.dataset.key] = ["amount"].includes(field.dataset.key) ? Number(field.value) : field.value; }));
   document.querySelectorAll("[data-customer][data-key]").forEach((field) => (field.oninput = () => { const item = data.customers[Number(field.dataset.customer)]; item[field.dataset.key] = ["totalOrders", "totalSpent"].includes(field.dataset.key) ? Number(field.value) : field.value; }));
   document.querySelectorAll("[data-worker][data-key]").forEach((field) => (field.oninput = () => { const item = data.workers[Number(field.dataset.worker)]; item[field.dataset.key] = field.type === "checkbox" ? field.checked : field.dataset.key === "rate" ? Number(field.value) : field.value; }));
-  document.querySelectorAll("[data-review][data-key]").forEach((field) => (field.oninput = () => { const item = data.reviews[Number(field.dataset.review)]; item[field.dataset.key] = field.type === "checkbox" ? field.checked : field.value; }));
+  document.querySelectorAll("[data-review][data-key]").forEach((field) => (field.oninput = () => { const item = data.reviews[Number(field.dataset.review)]; item[field.dataset.key] = field.type === "checkbox" ? field.checked : field.dataset.key === "rating" ? Number(field.value) : field.value; }));
+  document.querySelectorAll("[data-payment][data-key]").forEach((field) => (field.oninput = () => { const item = data.paymentMethods[Number(field.dataset.payment)]; item[field.dataset.key] = field.type === "checkbox" ? field.checked : field.dataset.key === "sortOrder" ? Number(field.value) : field.value; }));
 }
 
 document.querySelectorAll(".tab").forEach((button) => (button.onclick = () => render(button.dataset.tab)));

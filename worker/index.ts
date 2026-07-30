@@ -76,6 +76,22 @@ type Review = {
   text?: string;
   rating?: number;
   visible?: boolean;
+  featured?: boolean;
+  verifiedPurchase?: boolean;
+  orderId?: string;
+};
+
+type PaymentMethod = {
+  id: string;
+  name: string;
+  icon?: string;
+  enabled: boolean;
+  recommended?: boolean;
+  mode: "automatic" | "manual";
+  cryptoCode?: "BTC" | "LTC";
+  paymentDetails?: string;
+  instructions?: string;
+  sortOrder?: number;
 };
 
 type Order = {
@@ -93,7 +109,7 @@ type Order = {
   accountId?: string;
   email?: string;
   discord?: string;
-  paymentMethod?: "BTC" | "LTC";
+  paymentMethod?: string;
   paymentAddress?: string;
   paymentStatus?: string;
   expiresAt?: string;
@@ -145,6 +161,7 @@ type SiteState = {
   schemaVersion: number;
   accounts: Account[];
   reviews: Review[];
+  paymentMethods: PaymentMethod[];
   orders: Order[];
   customers: Customer[];
   workers: Worker[];
@@ -515,6 +532,10 @@ function defaultState(accounts: Account[], pricing?: Record<string, unknown>): S
         : "available",
     })),
     reviews: [],
+    paymentMethods: [
+      { id: "btc", name: "Bitcoin", icon: "₿", enabled: true, recommended: true, mode: "automatic", cryptoCode: "BTC", paymentDetails: BTC_WALLET, instructions: "Automatic confirmation and email delivery after one blockchain confirmation.", sortOrder: 1 },
+      { id: "ltc", name: "Litecoin", icon: "Ł", enabled: true, recommended: false, mode: "automatic", cryptoCode: "LTC", paymentDetails: LTC_WALLET, instructions: "Automatic confirmation and email delivery after one blockchain confirmation.", sortOrder: 2 },
+    ],
     orders: [],
     customers: [],
     workers: [],
@@ -555,6 +576,20 @@ function normalizeState(input: unknown, fallback: SiteState): SiteState {
     schemaVersion: 5,
     accounts: (Array.isArray(value.accounts) ? value.accounts : fallback.accounts).map(normalizeAccountSaleMethod),
     reviews: Array.isArray(value.reviews) ? value.reviews : [],
+    paymentMethods: Array.isArray(value.paymentMethods) && value.paymentMethods.length
+      ? value.paymentMethods.map((method, index) => ({
+          id: asString(method.id, `payment-${index + 1}`),
+          name: asString(method.name, "Payment method"),
+          icon: asString(method.icon),
+          enabled: method.enabled !== false,
+          recommended: Boolean(method.recommended),
+          mode: method.mode === "manual" ? "manual" : "automatic",
+          cryptoCode: method.cryptoCode === "LTC" ? "LTC" : method.cryptoCode === "BTC" ? "BTC" : undefined,
+          paymentDetails: asString(method.paymentDetails),
+          instructions: asString(method.instructions),
+          sortOrder: Number(method.sortOrder ?? index + 1),
+        }))
+      : fallback.paymentMethods,
     orders: Array.isArray(value.orders) ? value.orders : [],
     customers: Array.isArray(value.customers) ? value.customers : [],
     workers: Array.isArray(value.workers) ? value.workers : [],
@@ -769,6 +804,10 @@ function publicState(state: SiteState) {
   return {
     accounts: publicAccounts,
     reviews: state.reviews,
+    paymentMethods: [...state.paymentMethods]
+      .filter(method => method.enabled)
+      .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+      .map(method => ({ ...method, paymentDetails: method.mode === "manual" ? method.paymentDetails : undefined })),
     announcement: state.announcement,
     content: state.content,
     settings: {
@@ -1223,6 +1262,17 @@ async function handleAdmin(
     const incoming = await request.json().catch(() => ({}));
     const updated = normalizeState(incoming, state);
     updated.activity = state.activity;
+    for (const updatedOrder of updated.orders) {
+      const previous = state.orders.find(item => item.id === updatedOrder.id);
+      if (previous && !["paid", "completed"].includes(previous.status) && ["paid", "completed"].includes(updatedOrder.status)) {
+        updatedOrder.paymentStatus = "confirmed";
+        const account = updated.accounts.find(item => asString(item.id) === asString(updatedOrder.accountId));
+        if (account && updatedOrder.deliveryStatus !== "sent") {
+          try { await deliverOrder(env, updated, updatedOrder, account); }
+          catch (error) { updatedOrder.deliveryStatus = "failed"; updatedOrder.deliveryError = error instanceof Error ? error.message : String(error); }
+        }
+      }
+    }
     const releasedReservations = releaseOrphanedReservationsAfterAdminSave(state, updated);
     if (releasedReservations > 0) {
       updated.activity.push({
@@ -1384,7 +1434,7 @@ const worker = {
       const state = await readState(env, request, true); const order = state.orders.find(item => item.id === orderId && asString(item.email).toLowerCase() === email);
       if (!order || !["paid", "completed"].includes(order.status)) return json({ error: "We could not verify this completed order." }, 400);
       if (state.reviews.some(review => review.id === `feedback-${orderId}`)) return json({ error: "Feedback was already submitted for this order." }, 409);
-      state.reviews.unshift({ id: `feedback-${orderId}`, name: asString(body.name, "Verified customer").trim() || "Verified customer", source: "Website", text: message.slice(0, 1200), rating, visible: false });
+      state.reviews.unshift({ id: `feedback-${orderId}`, name: asString(body.name, "Verified customer").trim() || "Verified customer", source: "Website", text: message.slice(0, 1200), rating, visible: false, featured: false, verifiedPurchase: true, orderId });
       state.activity.push({ id: crypto.randomUUID(), action: "Website feedback received", actor: email, detail: `${orderId} · ${rating}/5 · 5% next-order discount eligible`, createdAt: now() });
       await saveState(env, state); return json({ ok: true, message: "Thank you. Your 5% next-order discount has been recorded for review." }, 201);
     }
@@ -1392,10 +1442,13 @@ const worker = {
     if (request.method === "POST" && url.pathname === "/api/checkout/create") {
       const body = (await request.json().catch(() => ({}))) as { accountId?: string; email?: string; discord?: string; paymentMethod?: string };
       const email = asString(body.email).trim().toLowerCase();
-      const paymentMethod = asString(body.paymentMethod).toUpperCase();
       if (!email || !email.includes("@")) return json({ error: "Enter a valid email address." }, 400);
-      if (!['BTC','LTC'].includes(paymentMethod)) return json({ error: "Choose BTC or LTC." }, 400);
       const state = await readState(env, request, true);
+      const paymentMethodId = asString(body.paymentMethod).trim();
+      const method = state.paymentMethods.find(item => item.enabled && item.id === paymentMethodId)
+        || state.paymentMethods.find(item => item.enabled && item.cryptoCode === paymentMethodId.toUpperCase());
+      if (!method) return json({ error: "Choose an available payment method." }, 400);
+      const paymentMethod = method.cryptoCode || method.name;
       const released = releaseExpiredReservations(state);
       const account = state.accounts.find((item) => asString(item.id) === asString(body.accountId));
       if (!account) return json({ error: "Account not found." }, 404);
@@ -1403,21 +1456,22 @@ const worker = {
       if (asString(account.status, 'available').toLowerCase() !== 'available') return json({ error: "This account is currently unavailable or reserved." }, 409);
       const orderId = `SS-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-      const paymentAddress = paymentMethod === 'BTC' ? BTC_WALLET : LTC_WALLET;
+      const paymentAddress = method.paymentDetails || (method.cryptoCode === 'BTC' ? BTC_WALLET : method.cryptoCode === 'LTC' ? LTC_WALLET : '');
       const baseAmount = asNumber(account.price);
       const uniqueAmountUsd = uniqueUsdAmount(baseAmount, state.orders);
-      let exchangeRateUsd: number;
-      try { exchangeRateUsd = await getCryptoRate(env, paymentMethod as 'BTC' | 'LTC'); }
+      let exchangeRateUsd = 0;
+      if (method.mode === 'automatic' && method.cryptoCode) try { exchangeRateUsd = await getCryptoRate(env, method.cryptoCode); }
       catch { return json({ error: 'Live crypto pricing is temporarily unavailable from both providers. Please try again shortly or contact support on Discord.' }, 503); }
-      const cryptoAmount = Number((uniqueAmountUsd / exchangeRateUsd).toFixed(8));
-      const cryptoUnits = Math.round(cryptoAmount * 100_000_000);
+      const cryptoAmount = method.mode === 'automatic' ? Number((uniqueAmountUsd / exchangeRateUsd).toFixed(8)) : 0;
+      const cryptoUnits = method.mode === 'automatic' ? Math.round(cryptoAmount * 100_000_000) : 0;
       const publicToken = crypto.randomUUID().replace(/-/g, '');
       const order: Order = {
         id: orderId, publicToken, customerName: email, email, discord: asString(body.discord).trim(),
         service: asString(account.title, 'OSRS account'), accountId: asString(account.id),
-        status: 'pending_payment', paymentStatus: 'waiting', amount: baseAmount, currency: 'USD', uniqueAmountUsd,
-        paymentMethod: paymentMethod as 'BTC' | 'LTC', paymentAddress, cryptoAmount, cryptoUnits, exchangeRateUsd, createdAt: now(), expiresAt,
-        notes: 'V6.2 automatic blockchain payment detection enabled. One confirmation required.'
+        status: 'pending_payment', amount: baseAmount, currency: 'USD', uniqueAmountUsd,
+        paymentMethod, paymentAddress, cryptoAmount, cryptoUnits, exchangeRateUsd, createdAt: now(), expiresAt,
+        notes: method.mode === 'automatic' ? 'Automatic blockchain payment detection enabled. One confirmation required.' : `Manual payment selected: ${method.name}. ${method.instructions || ''}`,
+        paymentStatus: method.mode === 'automatic' ? 'waiting' : 'manual_waiting'
       };
       account.status = 'reserved'; account.reservedUntil = expiresAt; account.reservedOrderId = orderId;
       state.orders.unshift(order);
@@ -1433,7 +1487,7 @@ const worker = {
       ]);
       order.discordNotified = { ...(order.discordNotified || {}), created: true };
       await saveState(env, state);
-      return json({ orderId, publicToken, statusUrl: `/order?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(publicToken)}`, account: publicAccount(account), amountUsd: baseAmount, uniqueAmountUsd, cryptoAmount, paymentMethod, paymentAddress, exchangeRateUsd, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'automatic_v62', confirmationsRequired: 1 }, 201);
+      return json({ orderId, publicToken, statusUrl: `/order?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(publicToken)}`, account: publicAccount(account), amountUsd: baseAmount, uniqueAmountUsd, cryptoAmount, paymentMethod, paymentMethodName: method.name, paymentAddress, paymentInstructions: method.instructions || '', paymentMode: method.mode, exchangeRateUsd, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: method.mode, confirmationsRequired: method.mode === 'automatic' ? 1 : 0 }, 201);
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/checkout/order/")) {
