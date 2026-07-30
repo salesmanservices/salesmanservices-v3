@@ -237,15 +237,59 @@ function now() {
 }
 
 async function getCryptoRate(env: Env, method: "BTC" | "LTC") {
-  const id = method === "BTC" ? "bitcoin" : "litecoin";
-  const headers: Record<string,string> = { accept: "application/json" };
-  if (env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = env.COINGECKO_API_KEY;
-  const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_last_updated_at=true`, { headers });
-  if (!response.ok) throw new Error(`Price service returned ${response.status}`);
-  const data = await response.json() as Record<string,{usd?:number}>;
-  const rate = Number(data[id]?.usd);
-  if (!Number.isFinite(rate) || rate <= 0) throw new Error("Invalid crypto price");
-  return rate;
+  const cacheKey = `crypto_rate_${method.toLowerCase()}_usd`;
+  const validRate = (value: unknown) => {
+    const rate = Number(value);
+    return Number.isFinite(rate) && rate > 0 ? rate : null;
+  };
+
+  // Primary provider: Coinbase Exchange public ticker (no API key required).
+  try {
+    const product = method === "BTC" ? "BTC-USD" : "LTC-USD";
+    const response = await fetch(`https://api.exchange.coinbase.com/products/${product}/ticker`, {
+      headers: { accept: "application/json", "user-agent": "SalesmanServices/1.0" },
+    });
+    if (response.ok) {
+      const data = await response.json() as { price?: string | number };
+      const rate = validRate(data.price);
+      if (rate) {
+        await env.SALESMAN_DATA?.put(cacheKey, JSON.stringify({ rate, savedAt: Date.now() }), { expirationTtl: 86400 });
+        return rate;
+      }
+    }
+  } catch (error) {
+    console.warn("Coinbase price lookup failed", error);
+  }
+
+  // Secondary provider: CoinGecko Demo API. The key is optional, but strongly recommended.
+  try {
+    const id = method === "BTC" ? "bitcoin" : "litecoin";
+    const headers: Record<string,string> = { accept: "application/json" };
+    if (env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = env.COINGECKO_API_KEY;
+    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_last_updated_at=true`, { headers });
+    if (response.ok) {
+      const data = await response.json() as Record<string,{usd?:number}>;
+      const rate = validRate(data[id]?.usd);
+      if (rate) {
+        await env.SALESMAN_DATA?.put(cacheKey, JSON.stringify({ rate, savedAt: Date.now() }), { expirationTtl: 86400 });
+        return rate;
+      }
+    }
+  } catch (error) {
+    console.warn("CoinGecko price lookup failed", error);
+  }
+
+  // Last-resort fallback: use the most recently cached rate for up to 24 hours.
+  try {
+    const cached = await env.SALESMAN_DATA?.get(cacheKey, "json") as { rate?: number; savedAt?: number } | null;
+    const rate = validRate(cached?.rate);
+    const age = Date.now() - Number(cached?.savedAt || 0);
+    if (rate && age >= 0 && age <= 24 * 60 * 60 * 1000) return rate;
+  } catch (error) {
+    console.warn("Cached crypto price lookup failed", error);
+  }
+
+  throw new Error("All crypto price providers are unavailable");
 }
 
 function uniqueUsdAmount(base: number, orders: Order[]) {
@@ -1311,7 +1355,7 @@ const worker = {
       const uniqueAmountUsd = uniqueUsdAmount(baseAmount, state.orders);
       let exchangeRateUsd: number;
       try { exchangeRateUsd = await getCryptoRate(env, paymentMethod as 'BTC' | 'LTC'); }
-      catch { return json({ error: 'Live crypto price is temporarily unavailable. Please try again in a moment.' }, 503); }
+      catch { return json({ error: 'Live crypto pricing is temporarily unavailable from both providers. Please try again shortly or contact support on Discord.' }, 503); }
       const cryptoAmount = Number((uniqueAmountUsd / exchangeRateUsd).toFixed(8));
       const cryptoUnits = Math.round(cryptoAmount * 100_000_000);
       const publicToken = crypto.randomUUID().replace(/-/g, '');
