@@ -30,6 +30,9 @@ interface Env {
   ADMIN_EMAIL?: string;
   BLOCKCYPHER_TOKEN?: string;
   COINGECKO_API_KEY?: string;
+  RESEND_API_KEY?: string;
+  DELIVERY_FROM_EMAIL?: string;
+  VAULT_ENCRYPTION_KEY?: string;
 }
 
 interface ExecutionContext {
@@ -56,6 +59,12 @@ type Account = {
   reservedOrderId?: string;
   createdAt?: string;
   updatedAt?: string;
+  vault?: {
+    version: 1;
+    iv: string;
+    ciphertext: string;
+    updatedAt: string;
+  };
 };
 
 type Review = {
@@ -94,6 +103,9 @@ type Order = {
   confirmations?: number;
   paidAt?: string;
   lastPaymentCheck?: string;
+  deliveryStatus?: "not_configured" | "ready" | "sent" | "failed";
+  deliveredAt?: string;
+  deliveryError?: string;
 };
 
 type Customer = {
@@ -253,7 +265,7 @@ async function findPayment(env: Env, order: Order) {
   const data = await response.json() as { txrefs?: Array<{tx_hash?:string,value?:number,confirmations?:number,received?:string,confirmed?:string,tx_input_n?:number}>; unconfirmed_txrefs?: Array<{tx_hash?:string,value?:number,confirmations?:number,received?:string,tx_input_n?:number}> };
   const refs = [...(data.txrefs || []), ...(data.unconfirmed_txrefs || [])];
   const created = Date.parse(order.createdAt) - 5*60*1000;
-  return refs.find(ref => ref.tx_input_n === -1 && Number(ref.value) === Number(order.cryptoUnits) && Date.parse(ref.received || ref.confirmed || order.createdAt) >= created) || null;
+  return refs.find(ref => ref.tx_input_n === -1 && Number(ref.value) === Number(order.cryptoUnits) && Date.parse(ref.received || order.createdAt) >= created) || null;
 }
 
 async function checkPendingPayments(env: Env, state: SiteState) {
@@ -270,7 +282,11 @@ async function checkPendingPayments(env: Env, state: SiteState) {
         order.status = "paid";
         order.paidAt = now();
         const account = state.accounts.find(a => asString(a.id) === asString(order.accountId));
-        if (account) { account.status = "sold"; account.soldDate = now(); account.reservedUntil = undefined; account.reservedOrderId = undefined; }
+        if (account) {
+          account.status = "sold"; account.soldDate = now(); account.reservedUntil = undefined; account.reservedOrderId = undefined;
+          try { await deliverOrder(env, state, order, account); }
+          catch (deliveryError) { order.deliveryStatus = "failed"; order.deliveryError = deliveryError instanceof Error ? deliveryError.message : String(deliveryError); }
+        }
         const customer = state.customers.find(c => c.email === order.email);
         if (customer) customer.totalSpent = Number(customer.totalSpent || 0) + Number(order.amount || 0);
         state.activity.push({ id: crypto.randomUUID(), action: "Crypto payment confirmed", actor: "System", detail: `${order.id} · ${order.paymentMethod} · ${order.transactionHash}`, createdAt: now() });
@@ -283,6 +299,81 @@ async function checkPendingPayments(env: Env, state: SiteState) {
     }
   }
   if (changed) await saveState(env, state);
+}
+
+
+
+type VaultCredentials = {
+  username: string;
+  password: string;
+  registeredEmail: string;
+  emailPassword: string;
+  recoveryInfo: string;
+  extraNotes: string;
+};
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function vaultKey(env: Env) {
+  if (!env.VAULT_ENCRYPTION_KEY || env.VAULT_ENCRYPTION_KEY.length < 24) {
+    throw new Error("VAULT_ENCRYPTION_KEY must be configured with at least 24 characters.");
+  }
+  const digestBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(env.VAULT_ENCRYPTION_KEY));
+  return crypto.subtle.importKey("raw", digestBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function encryptCredentials(env: Env, credentials: VaultCredentials) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    await vaultKey(env),
+    new TextEncoder().encode(JSON.stringify(credentials)),
+  );
+  return { version: 1 as const, iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(encrypted)), updatedAt: now() };
+}
+
+async function decryptCredentials(env: Env, vault: NonNullable<Account["vault"]>): Promise<VaultCredentials> {
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64ToBytes(vault.iv) },
+    await vaultKey(env),
+    base64ToBytes(vault.ciphertext),
+  );
+  const value = JSON.parse(new TextDecoder().decode(decrypted)) as Partial<VaultCredentials>;
+  return {
+    username: asString(value.username), password: asString(value.password),
+    registeredEmail: asString(value.registeredEmail), emailPassword: asString(value.emailPassword),
+    recoveryInfo: asString(value.recoveryInfo), extraNotes: asString(value.extraNotes),
+  };
+}
+
+function emailEscape(value: string) {
+  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char] || char));
+}
+
+async function deliverOrder(env: Env, state: SiteState, order: Order, account: Account) {
+  if (order.deliveryStatus === "sent") return;
+  if (!account.vault) { order.deliveryStatus = "not_configured"; order.deliveryError = "No credentials saved in Account Vault."; return; }
+  if (!env.RESEND_API_KEY || !env.DELIVERY_FROM_EMAIL) { order.deliveryStatus = "failed"; order.deliveryError = "RESEND_API_KEY or DELIVERY_FROM_EMAIL is not configured."; return; }
+  const credentials = await decryptCredentials(env, account.vault);
+  const feedback = `Leave feedback on Discord, Sythe, or our website and receive 5% off your next order.`;
+  const websiteFeedback = `https://www.salesmanservices.com/feedback?order=${encodeURIComponent(order.id)}`;
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#0b0c10;color:#f6f2e8;padding:28px"><div style="max-width:640px;margin:auto;background:#17191f;border:1px solid #b98b3d;border-radius:14px;padding:28px"><h1 style="color:#e8c36a">Salesman Services</h1><p>Your payment for <b>${emailEscape(order.service)}</b> has been confirmed. Your account is ready.</p><table style="width:100%;border-collapse:collapse"><tr><td>Username</td><td><b>${emailEscape(credentials.username)}</b></td></tr><tr><td>Password</td><td><b>${emailEscape(credentials.password)}</b></td></tr><tr><td>Registered email</td><td><b>${emailEscape(credentials.registeredEmail)}</b></td></tr><tr><td>Email password</td><td><b>${emailEscape(credentials.emailPassword)}</b></td></tr><tr><td>Recovery information</td><td>${emailEscape(credentials.recoveryInfo || "None provided")}</td></tr><tr><td>Extra notes</td><td>${emailEscape(credentials.extraNotes || "None")}</td></tr></table><p style="margin-top:24px">For support: <a style="color:#e8c36a" href="${DISCORD}">Join our Discord</a></p><div style="margin-top:24px;padding:18px;background:#242118;border:1px solid #8e6b2f;border-radius:10px"><b style="color:#e8c36a">5% loyalty discount</b><p>${feedback}</p><p><a style="color:#e8c36a" href="${DISCORD}">Discord</a> · <a style="color:#e8c36a" href="${SYTHE}">Sythe vouch thread</a> · <a style="color:#e8c36a" href="${websiteFeedback}">Website feedback</a></p></div><p style="font-size:12px;color:#aaa;margin-top:24px">Order ${emailEscape(order.id)}. Change all passwords and recovery details immediately after logging in.</p></div></body></html>`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({ from: env.DELIVERY_FROM_EMAIL, to: [order.email], subject: `Your Salesman Services account — ${order.id}`, html }),
+  });
+  if (!response.ok) throw new Error(`Email provider returned ${response.status}: ${await response.text()}`);
+  order.deliveryStatus = "sent"; order.deliveredAt = now(); order.deliveryError = undefined; order.status = "completed";
+  state.activity.push({ id: crypto.randomUUID(), action: "Account credentials delivered", actor: "System", detail: `${order.id} · ${order.email}`, createdAt: now() });
 }
 
 function asString(value: unknown, fallback = "") {
@@ -465,7 +556,10 @@ async function logActivity(
 
 function checkoutEligible(account: Account) {
   const type = asString(account.type).toLowerCase();
-  return type.includes("zerker") || type.includes("pure") || type.includes("med");
+  const title = asString(account.title).toLowerCase();
+  const discordOnly = ["skiller", "woodcutting", "thieving", "600 ttl", "600 total"].some(term => type.includes(term) || title.includes(term));
+  if (discordOnly) return false;
+  return type.includes("zerker") || type.includes("pure") || type.includes("med") || title.includes("zerker") || title.includes("pure") || title.includes("med main");
 }
 
 function releaseExpiredReservations(state: SiteState) {
@@ -941,6 +1035,31 @@ async function handleAdmin(
   if (request.method === "GET" && url.pathname === "/api/admin/data") {
     return json(state);
   }
+  if (url.pathname.startsWith("/api/admin/vault/")) {
+    const accountId = decodeURIComponent(url.pathname.slice("/api/admin/vault/".length));
+    const account = state.accounts.find(item => asString(item.id) === accountId);
+    if (!account) return json({ error: "Account not found." }, 404);
+    if (request.method === "GET") {
+      if (!account.vault) return json({ configured: false, credentials: null });
+      try { return json({ configured: true, credentials: await decryptCredentials(env, account.vault), updatedAt: account.vault.updatedAt }); }
+      catch (error) { return json({ error: error instanceof Error ? error.message : String(error) }, 500); }
+    }
+    if (request.method === "PUT") {
+      const body = (await request.json().catch(() => ({}))) as Partial<VaultCredentials>;
+      const credentials: VaultCredentials = { username: asString(body.username).trim(), password: asString(body.password), registeredEmail: asString(body.registeredEmail).trim(), emailPassword: asString(body.emailPassword), recoveryInfo: asString(body.recoveryInfo), extraNotes: asString(body.extraNotes) };
+      if (!credentials.username || !credentials.password) return json({ error: "Username and password are required." }, 400);
+      try { account.vault = await encryptCredentials(env, credentials); await logActivity(env, state, "Account Vault updated", account.title || accountId, actorName(env)); return json({ configured: true, updatedAt: account.vault.updatedAt }); }
+      catch (error) { return json({ error: error instanceof Error ? error.message : String(error) }, 500); }
+    }
+  }
+  if (request.method === "POST" && url.pathname.startsWith("/api/admin/delivery/retry/")) {
+    const orderId = decodeURIComponent(url.pathname.slice("/api/admin/delivery/retry/".length));
+    const order = state.orders.find(item => item.id === orderId);
+    const account = order && state.accounts.find(item => asString(item.id) === asString(order.accountId));
+    if (!order || !account) return json({ error: "Order or account not found." }, 404);
+    try { await deliverOrder(env, state, order, account); await saveState(env, state); return json(order); }
+    catch (error) { order.deliveryStatus = "failed"; order.deliveryError = error instanceof Error ? error.message : String(error); await saveState(env, state); return json({ error: order.deliveryError }, 500); }
+  }
   if (request.method === "PUT" && url.pathname === "/api/admin/data") {
     const incoming = await request.json().catch(() => ({}));
     const updated = normalizeState(incoming, state);
@@ -1030,6 +1149,9 @@ const worker = {
     if (request.method === "GET" && (url.pathname === "/checkout" || url.pathname === "/checkout/")) {
       return env.ASSETS.fetch(new Request(new URL("/checkout.html", request.url), request));
     }
+    if (request.method === "GET" && (url.pathname === "/feedback" || url.pathname === "/feedback/")) {
+      return env.ASSETS.fetch(new Request(new URL("/feedback.html", request.url), request));
+    }
 
     if (request.method === "GET" && url.pathname.startsWith("/media/")) {
       if (!env.BUCKET) return new Response("Not found", { status: 404 });
@@ -1082,6 +1204,19 @@ const worker = {
       return json(publicState(state), 200, { "cache-control": "public, max-age=30" });
     }
 
+    if (request.method === "POST" && url.pathname === "/api/feedback") {
+      const body = (await request.json().catch(() => ({}))) as { orderId?: string; email?: string; rating?: number; message?: string; name?: string };
+      const orderId = asString(body.orderId).trim(); const email = asString(body.email).trim().toLowerCase(); const message = asString(body.message).trim();
+      const rating = Math.max(1, Math.min(5, Math.round(asNumber(body.rating, 5))));
+      if (!orderId || !email || !message) return json({ error: "Order ID, email, and feedback are required." }, 400);
+      const state = await readState(env, request, true); const order = state.orders.find(item => item.id === orderId && asString(item.email).toLowerCase() === email);
+      if (!order || !["paid", "completed"].includes(order.status)) return json({ error: "We could not verify this completed order." }, 400);
+      if (state.reviews.some(review => review.id === `feedback-${orderId}`)) return json({ error: "Feedback was already submitted for this order." }, 409);
+      state.reviews.unshift({ id: `feedback-${orderId}`, name: asString(body.name, "Verified customer").trim() || "Verified customer", source: "Website", text: message.slice(0, 1200), rating, visible: false });
+      state.activity.push({ id: crypto.randomUUID(), action: "Website feedback received", actor: email, detail: `${orderId} · ${rating}/5 · 5% next-order discount eligible`, createdAt: now() });
+      await saveState(env, state); return json({ ok: true, message: "Thank you. Your 5% next-order discount has been recorded for review." }, 201);
+    }
+
     if (request.method === "POST" && url.pathname === "/api/checkout/create") {
       const body = (await request.json().catch(() => ({}))) as { accountId?: string; email?: string; discord?: string; paymentMethod?: string };
       const email = asString(body.email).trim().toLowerCase();
@@ -1126,7 +1261,7 @@ const worker = {
       const id = decodeURIComponent(url.pathname.slice('/api/checkout/order/'.length));
       const order = state.orders.find((item) => item.id === id);
       if (!order) return json({ error: 'Order not found.' }, 404);
-      await checkPendingPayments(env, state); return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, uniqueAmountUsd: order.uniqueAmountUsd, cryptoAmount: order.cryptoAmount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, confirmations: order.confirmations || 0, transactionHash: order.transactionHash, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL });
+      await checkPendingPayments(env, state); return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, uniqueAmountUsd: order.uniqueAmountUsd, cryptoAmount: order.cryptoAmount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, confirmations: order.confirmations || 0, transactionHash: order.transactionHash, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL, deliveryStatus: order.deliveryStatus || null, deliveredAt: order.deliveredAt || null });
     }
 
     if (request.method === "POST" && url.pathname === "/api/event") {
