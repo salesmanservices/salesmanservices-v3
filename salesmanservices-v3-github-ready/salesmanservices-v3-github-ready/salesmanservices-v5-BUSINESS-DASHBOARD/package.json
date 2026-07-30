@@ -1,0 +1,12 @@
+{
+  "name": "salesmanservices-v5",
+  "private": true,
+  "version": "5.0.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "node --check src/worker.js && node --check public/admin/admin.js && node --check public/assets/site.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.14.0"
+  }
+}
