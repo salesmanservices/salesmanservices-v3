@@ -50,6 +50,8 @@ type Account = {
   button?: string;
   soldDate?: string;
   notes?: string;
+  reservedUntil?: string;
+  reservedOrderId?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -75,6 +77,13 @@ type Order = {
   createdAt: string;
   dueAt?: string;
   notes?: string;
+  accountId?: string;
+  email?: string;
+  discord?: string;
+  paymentMethod?: "BTC" | "LTC";
+  paymentAddress?: string;
+  paymentStatus?: string;
+  expiresAt?: string;
 };
 
 type Customer = {
@@ -135,7 +144,10 @@ type SiteState = {
   pricing?: Record<string, unknown>;
 };
 
-const DISCORD = "https://discord.gg/HkUCNNQtmG";
+const DISCORD = "https://discord.gg/xDSvKT3ThQ";
+const BUSINESS_EMAIL = "yozii66@hotmail.com";
+const BTC_WALLET = "bc1q5uze36neguaxtkpz22dep84vd6r597yxxdlep5";
+const LTC_WALLET = "LNs7NpUDDMJHcweXDZJNgtBVpRaMJuU4An";
 const SELLAPP = "https://salesman.sell.app/";
 const SYTHE = "https://www.sythe.org/threads/ustunel66-vouches/";
 const DEFAULT_SHEET_IDS = [
@@ -377,6 +389,33 @@ async function logActivity(
   await saveState(env, state);
 }
 
+
+function checkoutEligible(account: Account) {
+  const type = asString(account.type).toLowerCase();
+  return type.includes("zerker") || type.includes("pure") || type.includes("med");
+}
+
+function releaseExpiredReservations(state: SiteState) {
+  const current = Date.now();
+  let changed = false;
+  for (const account of state.accounts) {
+    if (asString(account.status).toLowerCase() === "reserved" && account.reservedUntil && Date.parse(account.reservedUntil) <= current) {
+      account.status = "available";
+      account.reservedUntil = undefined;
+      account.reservedOrderId = undefined;
+      changed = true;
+    }
+  }
+  for (const order of state.orders) {
+    if (order.status === "pending_payment" && order.expiresAt && Date.parse(order.expiresAt) <= current) {
+      order.status = "expired";
+      order.paymentStatus = "expired";
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function publicAccount(account: Account) {
   return {
     id: asString(account.id),
@@ -384,8 +423,8 @@ function publicAccount(account: Account) {
     title: asString(account.title, "Untitled account"),
     price: account.price ?? null,
     currency: asString(account.currency, "USD"),
-    status: asString(account.status, "available").toLowerCase() === "sold"
-      ? "sold"
+    status: ["sold", "reserved"].includes(asString(account.status).toLowerCase())
+      ? asString(account.status).toLowerCase()
       : "available",
     tags: Array.isArray(account.tags)
       ? account.tags.map(String).slice(0, 20)
@@ -915,6 +954,10 @@ const worker = {
       );
     }
 
+    if (request.method === "GET" && (url.pathname === "/checkout" || url.pathname === "/checkout/")) {
+      return env.ASSETS.fetch(new Request(new URL("/checkout.html", request.url), request));
+    }
+
     if (request.method === "GET" && url.pathname.startsWith("/media/")) {
       if (!env.BUCKET) return new Response("Not found", { status: 404 });
       const object = await env.BUCKET.get(url.pathname.slice("/media/".length));
@@ -942,7 +985,7 @@ const worker = {
       const state = env.DB || env.SALESMAN_DATA ? await readState(env, request) : null;
       return json({
         ok: true,
-        version: "5.0",
+        version: "6.1",
         publicSite: true,
         liveInventory: true,
         admin: Boolean(env.ADMIN_PASSWORD),
@@ -964,6 +1007,46 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/api/site-data") {
       const state = await readState(env, request);
       return json(publicState(state), 200, { "cache-control": "public, max-age=30" });
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/checkout/create") {
+      const body = (await request.json().catch(() => ({}))) as { accountId?: string; email?: string; discord?: string; paymentMethod?: string };
+      const email = asString(body.email).trim().toLowerCase();
+      const paymentMethod = asString(body.paymentMethod).toUpperCase();
+      if (!email || !email.includes("@")) return json({ error: "Enter a valid email address." }, 400);
+      if (!['BTC','LTC'].includes(paymentMethod)) return json({ error: "Choose BTC or LTC." }, 400);
+      const state = await readState(env, request, true);
+      const released = releaseExpiredReservations(state);
+      const account = state.accounts.find((item) => asString(item.id) === asString(body.accountId));
+      if (!account) return json({ error: "Account not found." }, 404);
+      if (!checkoutEligible(account)) return json({ error: "This account is available through Discord only.", discord: DISCORD }, 400);
+      if (asString(account.status, 'available').toLowerCase() !== 'available') return json({ error: "This account is currently unavailable or reserved." }, 409);
+      const orderId = `SS-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const paymentAddress = paymentMethod === 'BTC' ? BTC_WALLET : LTC_WALLET;
+      const order: Order = {
+        id: orderId, customerName: email, email, discord: asString(body.discord).trim(),
+        service: asString(account.title, 'OSRS account'), accountId: asString(account.id),
+        status: 'pending_payment', paymentStatus: 'waiting', amount: asNumber(account.price), currency: 'USD',
+        paymentMethod: paymentMethod as 'BTC' | 'LTC', paymentAddress, createdAt: now(), expiresAt,
+        notes: 'V6.1 checkout reservation. Payment verification remains manual until V6.2.'
+      };
+      account.status = 'reserved'; account.reservedUntil = expiresAt; account.reservedOrderId = orderId;
+      state.orders.unshift(order);
+      state.customers.unshift({ id: crypto.randomUUID(), name: email, email, discord: asString(body.discord).trim(), totalOrders: 1, totalSpent: 0, createdAt: now() });
+      state.activity.push({ id: crypto.randomUUID(), action: 'Checkout started', actor: email, detail: `${orderId} · ${account.title} · ${paymentMethod}`, createdAt: now() });
+      if (released) state.activity.push({ id: crypto.randomUUID(), action: 'Reservations released', actor: 'System', detail: 'Expired reservations were returned to stock.', createdAt: now() });
+      await saveState(env, state);
+      return json({ orderId, account: publicAccount(account), amountUsd: asNumber(account.price), paymentMethod, paymentAddress, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'manual_v61' }, 201);
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/api/checkout/order/")) {
+      const state = await readState(env, request, true);
+      if (releaseExpiredReservations(state)) await saveState(env, state);
+      const id = decodeURIComponent(url.pathname.slice('/api/checkout/order/'.length));
+      const order = state.orders.find((item) => item.id === id);
+      if (!order) return json({ error: 'Order not found.' }, 404);
+      return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL });
     }
 
     if (request.method === "POST" && url.pathname === "/api/event") {
