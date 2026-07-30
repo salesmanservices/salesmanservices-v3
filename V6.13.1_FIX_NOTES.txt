@@ -1,0 +1,9 @@
+Salesman Services V6.13.1 — Checkout Payment Methods Reliability Fix
+
+- Fixes checkout remaining on “Loading payment methods…” after methods were saved in admin.
+- Public checkout now validates and safely renders dynamic payment methods.
+- Added no-cache loading so freshly saved methods appear immediately.
+- Added a BTC/LTC fallback so checkout never becomes unusable if payment-method data is temporarily malformed or unavailable.
+- Added safe HTML escaping for names and custom symbols/icons.
+- Added validation before creating an order when no payment method is selected.
+- Preserves V6.13 payment-method administration, verified reviews, reservations, vouches, inventory and existing Cloudflare data.
