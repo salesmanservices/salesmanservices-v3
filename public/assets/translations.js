@@ -6,7 +6,7 @@ const dictionaries={
   'Browse live accounts':'Mevcut hesaplara göz at','Calculate a service':'Hizmet hesapla','One team. Every OSRS service.':'Tek ekip. Tüm OSRS hizmetleri.',
   'Available accounts':'Mevcut hesaplar','Recently sold':'Yakın zamanda satılanlar','Another account found its new owner.':'Bir hesap daha yeni sahibini buldu.',
   'How it works.':'Nasıl çalışır.','Feedback & vouches.':'Geri bildirim ve referanslar.','Frequently asked questions.':'Sık sorulan sorular.',
-  'Ready to build the order?':'Siparişini oluşturmaya hazır mısın?','Open Discord':'Discord’u Aç','Visit SellApp':'SellApp’i Ziyaret Et',
+  'Ready to build the order?':'Siparişini oluşturmaya hazır mısın?','Open Discord':'Discord’u Aç','Browse live accounts':'Canlı hesaplara göz at',
   'Live support':'Canlı destek','AI + human':'Yapay zekâ + insan','Buy securely':'Güvenle satın al','Reserve on Discord':'Discord’da ayırt','Buy through Discord':'Discord üzerinden satın al',
   'Ask about similar accounts':'Benzer hesapları sor','Sold':'Satıldı','All':'Tümü','Zerker':'Zerker','Med Main':'Med Main','Pure':'Pure','Skiller':'Skiller'
  },
@@ -15,7 +15,7 @@ const dictionaries={
   'Browse live accounts':'Bekijk beschikbare accounts','Calculate a service':'Bereken een dienst','One team. Every OSRS service.':'Eén team. Elke OSRS-dienst.',
   'Available accounts':'Beschikbare accounts','Recently sold':'Recent verkocht','Another account found its new owner.':'Weer een account heeft een nieuwe eigenaar.',
   'How it works.':'Hoe het werkt.','Feedback & vouches.':'Feedback en vouches.','Frequently asked questions.':'Veelgestelde vragen.',
-  'Ready to build the order?':'Klaar om je bestelling samen te stellen?','Open Discord':'Open Discord','Visit SellApp':'Bezoek SellApp',
+  'Ready to build the order?':'Klaar om je bestelling samen te stellen?','Open Discord':'Open Discord','Browse live accounts':'Bekijk live accounts',
   'Live support':'Live ondersteuning','AI + human':'AI + mens','Buy securely':'Veilig kopen','Reserve on Discord':'Reserveren via Discord','Buy through Discord':'Kopen via Discord',
   'Ask about similar accounts':'Vraag naar vergelijkbare accounts','Sold':'Verkocht','All':'Alles','Zerker':'Zerker','Med Main':'Med Main','Pure':'Pure','Skiller':'Skiller'
  }};

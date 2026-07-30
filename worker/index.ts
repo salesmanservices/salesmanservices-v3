@@ -33,6 +33,7 @@ interface Env {
   RESEND_API_KEY?: string;
   DELIVERY_FROM_EMAIL?: string;
   VAULT_ENCRYPTION_KEY?: string;
+  DISCORD_ORDER_WEBHOOK?: string;
 }
 
 interface ExecutionContext {
@@ -107,6 +108,8 @@ type Order = {
   deliveryStatus?: "not_configured" | "ready" | "sent" | "failed";
   deliveredAt?: string;
   deliveryError?: string;
+  publicToken?: string;
+  discordNotified?: { created?: boolean; detected?: boolean; confirmed?: boolean; delivered?: boolean; deliveryFailed?: boolean };
 };
 
 type Customer = {
@@ -149,7 +152,6 @@ type SiteState = {
   announcement: { enabled: boolean; text: string };
   settings: {
     discord: string;
-    sellapp: string;
     sythe: string;
     googleSheetIds: string[];
     googleSheetTabs: string[];
@@ -171,7 +173,6 @@ const DISCORD = "https://discord.gg/xDSvKT3ThQ";
 const BUSINESS_EMAIL = "yozii66@hotmail.com";
 const BTC_WALLET = "bc1q5uze36neguaxtkpz22dep84vd6r597yxxdlep5";
 const LTC_WALLET = "LNs7NpUDDMJHcweXDZJNgtBVpRaMJuU4An";
-const SELLAPP = "https://salesman.sell.app/";
 const SYTHE = "https://www.sythe.org/threads/ustunel66-vouches/";
 const DEFAULT_SHEET_IDS = [
   "1YlfxUg-YXoYQX-QTlk9xjp96QTKmcqx07M6KSdB9LFY",
@@ -269,24 +270,76 @@ async function findPayment(env: Env, order: Order) {
   return refs.find(ref => ref.tx_input_n === -1 && Number(ref.value) === Number(order.cryptoUnits) && Date.parse(ref.received || order.createdAt) >= created) || null;
 }
 
+async function notifyDiscord(env: Env, title: string, description: string, fields: Array<{ name: string; value: string; inline?: boolean }> = []) {
+  if (!env.DISCORD_ORDER_WEBHOOK) return;
+  try {
+    await fetch(env.DISCORD_ORDER_WEBHOOK, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: "Salesman Services Orders",
+        allowed_mentions: { parse: [] },
+        embeds: [{ title, description, fields, timestamp: now(), footer: { text: "salesmanservices.com" } }],
+      }),
+    });
+  } catch {
+    // Notifications are best-effort and must never block checkout or delivery.
+  }
+}
+
 async function checkPendingPayments(env: Env, state: SiteState) {
   let changed = releaseExpiredReservations(state);
   for (const order of state.orders.filter(o => o.status === "pending_payment" && o.paymentStatus !== "expired")) {
     try {
       order.lastPaymentCheck = now();
+      order.discordNotified ||= {};
       const hit = await findPayment(env, order);
       if (!hit) { changed = true; continue; }
       order.transactionHash = hit.tx_hash;
       order.confirmations = Number(hit.confirmations || 0);
       order.paymentStatus = order.confirmations >= 1 ? "confirmed" : "detected";
+      if (order.paymentStatus === "detected" && !order.discordNotified.detected) {
+        await notifyDiscord(env, "Payment detected", `Payment detected for **${order.id}**.`, [
+          { name: "Account", value: order.service || "Unknown", inline: true },
+          { name: "Method", value: order.paymentMethod || "Unknown", inline: true },
+          { name: "Confirmations", value: String(order.confirmations || 0), inline: true },
+        ]);
+        order.discordNotified.detected = true;
+      }
       if (order.confirmations >= 1) {
         order.status = "paid";
         order.paidAt = now();
+        if (!order.discordNotified.confirmed) {
+          await notifyDiscord(env, "Payment confirmed", `Order **${order.id}** is paid.`, [
+            { name: "Account", value: order.service || "Unknown", inline: true },
+            { name: "Customer", value: order.email || "Unknown", inline: true },
+            { name: "Transaction", value: order.transactionHash || "Unavailable" },
+          ]);
+          order.discordNotified.confirmed = true;
+        }
         const account = state.accounts.find(a => asString(a.id) === asString(order.accountId));
         if (account) {
           account.status = "sold"; account.soldDate = now(); account.reservedUntil = undefined; account.reservedOrderId = undefined;
-          try { await deliverOrder(env, state, order, account); }
-          catch (deliveryError) { order.deliveryStatus = "failed"; order.deliveryError = deliveryError instanceof Error ? deliveryError.message : String(deliveryError); }
+          try {
+            await deliverOrder(env, state, order, account);
+            if (order.deliveryStatus === "sent" && !order.discordNotified.delivered) {
+              await notifyDiscord(env, "Credentials delivered", `Automatic email delivery completed for **${order.id}**.`, [
+                { name: "Account", value: order.service || "Unknown", inline: true },
+                { name: "Customer", value: order.email || "Unknown", inline: true },
+              ]);
+              order.discordNotified.delivered = true;
+            }
+          } catch (deliveryError) {
+            order.deliveryStatus = "failed";
+            order.deliveryError = deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
+            if (!order.discordNotified.deliveryFailed) {
+              await notifyDiscord(env, "Delivery failed", `Automatic delivery failed for **${order.id}**.`, [
+                { name: "Account", value: order.service || "Unknown", inline: true },
+                { name: "Error", value: (order.deliveryError || "Unknown error").slice(0, 900) },
+              ]);
+              order.discordNotified.deliveryFailed = true;
+            }
+          }
         }
         const customer = state.customers.find(c => c.email === order.email);
         if (customer) customer.totalSpent = Number(customer.totalSpent || 0) + Number(order.amount || 0);
@@ -419,7 +472,6 @@ function defaultState(accounts: Account[], pricing?: Record<string, unknown>): S
     announcement: { enabled: false, text: "" },
     settings: {
       discord: DISCORD,
-      sellapp: SELLAPP,
       sythe: SYTHE,
       googleSheetIds: [...DEFAULT_SHEET_IDS],
       googleSheetTabs: [...DEFAULT_SHEET_TABS],
@@ -627,7 +679,6 @@ function publicState(state: SiteState) {
     content: state.content,
     settings: {
       discord: state.settings.discord,
-      sellapp: state.settings.sellapp,
       sythe: state.settings.sythe,
     },
     meta: {
@@ -684,7 +735,7 @@ function inventoryPayload(accounts: Account[], url: URL) {
       "Use the listed price only when it is present; otherwise direct the visitor to Discord for a quote.",
       "Do not invent stock, prices, discounts, stats, quests, or account history.",
     ],
-    contact: { discord: DISCORD, sellapp: SELLAPP },
+    contact: { discord: DISCORD, website: "https://www.salesmanservices.com/" },
   };
 }
 
@@ -722,7 +773,7 @@ function inventoryText(payload: ReturnType<typeof inventoryPayload>) {
   for (const account of payload.soldAccounts) {
     lines.push(`- ${account.title} — SOLD`);
   }
-  lines.push("", `Discord: ${DISCORD}`, `SellApp: ${SELLAPP}`);
+  lines.push("", `Discord: ${DISCORD}`, "Website: https://www.salesmanservices.com/");
   return lines.join("\n");
 }
 
@@ -757,7 +808,7 @@ function inventoryHtml(payload: ReturnType<typeof inventoryPayload>) {
   }<h2>Sold — never offer as available</h2><ul>${
     payload.soldAccounts.map((account) => `<li>${escape(account.title)} — SOLD</li>`).join("") ||
     "<li>No sold accounts are currently listed.</li>"
-  }</ul><p>Discord: <a href="${DISCORD}">${DISCORD}</a><br>SellApp: <a href="${SELLAPP}">${SELLAPP}</a></p></body></html>`;
+  }</ul><p>Discord: <a href="${DISCORD}">${DISCORD}</a><br>Website: <a href="https://www.salesmanservices.com/">salesmanservices.com</a></p></body></html>`;
 }
 
 function constantTimeEqual(a: string, b: string) {
@@ -1163,6 +1214,9 @@ const worker = {
     if (request.method === "GET" && (url.pathname === "/checkout" || url.pathname === "/checkout/")) {
       return env.ASSETS.fetch(new Request(new URL("/checkout.html", request.url), request));
     }
+    if (request.method === "GET" && ["/order", "/order/", "/order-status", "/order-status/"].includes(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL("/order.html", request.url), request));
+    }
     if (request.method === "GET" && (url.pathname === "/feedback" || url.pathname === "/feedback/")) {
       return env.ASSETS.fetch(new Request(new URL("/feedback.html", request.url), request));
     }
@@ -1253,8 +1307,9 @@ const worker = {
       catch { return json({ error: 'Live crypto price is temporarily unavailable. Please try again in a moment.' }, 503); }
       const cryptoAmount = Number((uniqueAmountUsd / exchangeRateUsd).toFixed(8));
       const cryptoUnits = Math.round(cryptoAmount * 100_000_000);
+      const publicToken = crypto.randomUUID().replace(/-/g, '');
       const order: Order = {
-        id: orderId, customerName: email, email, discord: asString(body.discord).trim(),
+        id: orderId, publicToken, customerName: email, email, discord: asString(body.discord).trim(),
         service: asString(account.title, 'OSRS account'), accountId: asString(account.id),
         status: 'pending_payment', paymentStatus: 'waiting', amount: baseAmount, currency: 'USD', uniqueAmountUsd,
         paymentMethod: paymentMethod as 'BTC' | 'LTC', paymentAddress, cryptoAmount, cryptoUnits, exchangeRateUsd, createdAt: now(), expiresAt,
@@ -1266,7 +1321,15 @@ const worker = {
       state.activity.push({ id: crypto.randomUUID(), action: 'Checkout started', actor: email, detail: `${orderId} · ${account.title} · ${paymentMethod}`, createdAt: now() });
       if (released) state.activity.push({ id: crypto.randomUUID(), action: 'Reservations released', actor: 'System', detail: 'Expired reservations were returned to stock.', createdAt: now() });
       await saveState(env, state);
-      return json({ orderId, account: publicAccount(account), amountUsd: baseAmount, uniqueAmountUsd, cryptoAmount, paymentMethod, paymentAddress, exchangeRateUsd, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'automatic_v62', confirmationsRequired: 1 }, 201);
+      await notifyDiscord(env, 'New checkout order', `A customer created **${orderId}**.`, [
+        { name: 'Account', value: asString(account.title, 'OSRS account'), inline: true },
+        { name: 'Method', value: paymentMethod, inline: true },
+        { name: 'Amount', value: `$${uniqueAmountUsd.toFixed(2)}`, inline: true },
+        { name: 'Customer', value: email },
+      ]);
+      order.discordNotified = { ...(order.discordNotified || {}), created: true };
+      await saveState(env, state);
+      return json({ orderId, publicToken, statusUrl: `/order?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(publicToken)}`, account: publicAccount(account), amountUsd: baseAmount, uniqueAmountUsd, cryptoAmount, paymentMethod, paymentAddress, exchangeRateUsd, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'automatic_v62', confirmationsRequired: 1 }, 201);
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/checkout/order/")) {
@@ -1275,7 +1338,9 @@ const worker = {
       const id = decodeURIComponent(url.pathname.slice('/api/checkout/order/'.length));
       const order = state.orders.find((item) => item.id === id);
       if (!order) return json({ error: 'Order not found.' }, 404);
-      await checkPendingPayments(env, state); return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, uniqueAmountUsd: order.uniqueAmountUsd, cryptoAmount: order.cryptoAmount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, confirmations: order.confirmations || 0, transactionHash: order.transactionHash, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL, deliveryStatus: order.deliveryStatus || null, deliveredAt: order.deliveredAt || null });
+      const token = asString(url.searchParams.get('token'));
+      if (order.publicToken && token !== order.publicToken) return json({ error: 'Invalid order status link.' }, 403);
+      await checkPendingPayments(env, state); return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, uniqueAmountUsd: order.uniqueAmountUsd, cryptoAmount: order.cryptoAmount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, confirmations: order.confirmations || 0, transactionHash: order.transactionHash, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL, deliveryStatus: order.deliveryStatus || null, deliveredAt: order.deliveredAt || null, emailDeliveryMessage: 'After payment confirmation, complete account details are sent automatically to the email entered at checkout.' });
     }
 
     if (request.method === "POST" && url.pathname === "/api/event") {

@@ -12,7 +12,7 @@
       "Negotiable"
     ],
     "description": "50 Attack and 45 Defence Zerker shown with its correct original stats, equipment and quest progress.",
-    "buy": "https://salesman.sell.app/product/50-attack-zerker?store=salesman&locale=en&quantity=1",
+    "buy": "/checkout?account=zerker-1",
     "button": "Buy securely",
     "saleMethod": "crypto"
   },
@@ -29,7 +29,7 @@
       "PK / PvM"
     ],
     "description": "60 Attack and 70 Defence Med Main shown with the correct stats, equipment and quest screenshot.",
-    "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
+    "buy": "/checkout",
     "button": "Buy securely",
     "saleMethod": "crypto"
   },
@@ -46,7 +46,7 @@
       "PK / PvM"
     ],
     "description": "Second 60 Attack and 70 Defence Med Main using the correct original account screenshot.",
-    "buy": "https://salesman.sell.app/product/60-att-70-def-piety-ready-med-main?store=salesman&locale=en&quantity=1",
+    "buy": "/checkout",
     "button": "Buy securely",
     "saleMethod": "crypto"
   },
