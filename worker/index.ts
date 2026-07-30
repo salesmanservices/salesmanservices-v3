@@ -28,6 +28,8 @@ interface Env {
   };
   ADMIN_PASSWORD?: string;
   ADMIN_EMAIL?: string;
+  BLOCKCYPHER_TOKEN?: string;
+  COINGECKO_API_KEY?: string;
 }
 
 interface ExecutionContext {
@@ -84,6 +86,14 @@ type Order = {
   paymentAddress?: string;
   paymentStatus?: string;
   expiresAt?: string;
+  uniqueAmountUsd?: number;
+  cryptoAmount?: number;
+  cryptoUnits?: number;
+  exchangeRateUsd?: number;
+  transactionHash?: string;
+  confirmations?: number;
+  paidAt?: string;
+  lastPaymentCheck?: string;
 };
 
 type Customer = {
@@ -210,6 +220,69 @@ async function assetJson<T>(
 
 function now() {
   return new Date().toISOString();
+}
+
+async function getCryptoRate(env: Env, method: "BTC" | "LTC") {
+  const id = method === "BTC" ? "bitcoin" : "litecoin";
+  const headers: Record<string,string> = { accept: "application/json" };
+  if (env.COINGECKO_API_KEY) headers["x-cg-demo-api-key"] = env.COINGECKO_API_KEY;
+  const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_last_updated_at=true`, { headers });
+  if (!response.ok) throw new Error(`Price service returned ${response.status}`);
+  const data = await response.json() as Record<string,{usd?:number}>;
+  const rate = Number(data[id]?.usd);
+  if (!Number.isFinite(rate) || rate <= 0) throw new Error("Invalid crypto price");
+  return rate;
+}
+
+function uniqueUsdAmount(base: number, orders: Order[]) {
+  const used = new Set(orders.filter(o => o.status === "pending_payment").map(o => Number(o.uniqueAmountUsd || 0).toFixed(2)));
+  for (let cents=1; cents<=99; cents++) {
+    const candidate = Number((base + cents/100).toFixed(2));
+    if (!used.has(candidate.toFixed(2))) return candidate;
+  }
+  return Number((base + (Date.now()%99+1)/100).toFixed(2));
+}
+
+async function findPayment(env: Env, order: Order) {
+  if (!order.paymentMethod || !order.paymentAddress || !order.cryptoUnits) return null;
+  const chain = order.paymentMethod === "BTC" ? "btc" : "ltc";
+  const token = env.BLOCKCYPHER_TOKEN ? `&token=${encodeURIComponent(env.BLOCKCYPHER_TOKEN)}` : "";
+  const url = `https://api.blockcypher.com/v1/${chain}/main/addrs/${encodeURIComponent(order.paymentAddress)}?limit=50${token}`;
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`Blockchain service returned ${response.status}`);
+  const data = await response.json() as { txrefs?: Array<{tx_hash?:string,value?:number,confirmations?:number,received?:string,confirmed?:string,tx_input_n?:number}>; unconfirmed_txrefs?: Array<{tx_hash?:string,value?:number,confirmations?:number,received?:string,tx_input_n?:number}> };
+  const refs = [...(data.txrefs || []), ...(data.unconfirmed_txrefs || [])];
+  const created = Date.parse(order.createdAt) - 5*60*1000;
+  return refs.find(ref => ref.tx_input_n === -1 && Number(ref.value) === Number(order.cryptoUnits) && Date.parse(ref.received || ref.confirmed || order.createdAt) >= created) || null;
+}
+
+async function checkPendingPayments(env: Env, state: SiteState) {
+  let changed = releaseExpiredReservations(state);
+  for (const order of state.orders.filter(o => o.status === "pending_payment" && o.paymentStatus !== "expired")) {
+    try {
+      order.lastPaymentCheck = now();
+      const hit = await findPayment(env, order);
+      if (!hit) { changed = true; continue; }
+      order.transactionHash = hit.tx_hash;
+      order.confirmations = Number(hit.confirmations || 0);
+      order.paymentStatus = order.confirmations >= 1 ? "confirmed" : "detected";
+      if (order.confirmations >= 1) {
+        order.status = "paid";
+        order.paidAt = now();
+        const account = state.accounts.find(a => asString(a.id) === asString(order.accountId));
+        if (account) { account.status = "sold"; account.soldDate = now(); account.reservedUntil = undefined; account.reservedOrderId = undefined; }
+        const customer = state.customers.find(c => c.email === order.email);
+        if (customer) customer.totalSpent = Number(customer.totalSpent || 0) + Number(order.amount || 0);
+        state.activity.push({ id: crypto.randomUUID(), action: "Crypto payment confirmed", actor: "System", detail: `${order.id} · ${order.paymentMethod} · ${order.transactionHash}`, createdAt: now() });
+      }
+      changed = true;
+    } catch (error) {
+      order.lastPaymentCheck = now();
+      order.notes = `Automatic payment check error: ${error instanceof Error ? error.message : String(error)}`;
+      changed = true;
+    }
+  }
+  if (changed) await saveState(env, state);
 }
 
 function asString(value: unknown, fallback = "") {
@@ -923,12 +996,12 @@ const worker = {
     ctx: ExecutionContext,
   ) {
     if (!env.DB && !env.SALESMAN_DATA) return;
-    const request = new Request(
-      "https://salesmanservices.com/api/admin/sync-sheet",
-      { method: "POST" },
-    );
+    const request = new Request("https://salesmanservices.com/api/system/cron", { method: "POST" });
     const state = await readState(env, request, true);
-    ctx.waitUntil(syncPricing(env, request, state).catch(() => undefined));
+    ctx.waitUntil(checkPendingPayments(env, state).catch(() => undefined));
+    if ((_event.cron || "").includes("17 */6")) {
+      ctx.waitUntil(syncPricing(env, request, state).catch(() => undefined));
+    }
   },
 
   async fetch(
@@ -985,7 +1058,7 @@ const worker = {
       const state = env.DB || env.SALESMAN_DATA ? await readState(env, request) : null;
       return json({
         ok: true,
-        version: "6.1",
+        version: "6.2",
         publicSite: true,
         liveInventory: true,
         admin: Boolean(env.ADMIN_PASSWORD),
@@ -1024,12 +1097,19 @@ const worker = {
       const orderId = `SS-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
       const paymentAddress = paymentMethod === 'BTC' ? BTC_WALLET : LTC_WALLET;
+      const baseAmount = asNumber(account.price);
+      const uniqueAmountUsd = uniqueUsdAmount(baseAmount, state.orders);
+      let exchangeRateUsd: number;
+      try { exchangeRateUsd = await getCryptoRate(env, paymentMethod as 'BTC' | 'LTC'); }
+      catch { return json({ error: 'Live crypto price is temporarily unavailable. Please try again in a moment.' }, 503); }
+      const cryptoAmount = Number((uniqueAmountUsd / exchangeRateUsd).toFixed(8));
+      const cryptoUnits = Math.round(cryptoAmount * 100_000_000);
       const order: Order = {
         id: orderId, customerName: email, email, discord: asString(body.discord).trim(),
         service: asString(account.title, 'OSRS account'), accountId: asString(account.id),
-        status: 'pending_payment', paymentStatus: 'waiting', amount: asNumber(account.price), currency: 'USD',
-        paymentMethod: paymentMethod as 'BTC' | 'LTC', paymentAddress, createdAt: now(), expiresAt,
-        notes: 'V6.1 checkout reservation. Payment verification remains manual until V6.2.'
+        status: 'pending_payment', paymentStatus: 'waiting', amount: baseAmount, currency: 'USD', uniqueAmountUsd,
+        paymentMethod: paymentMethod as 'BTC' | 'LTC', paymentAddress, cryptoAmount, cryptoUnits, exchangeRateUsd, createdAt: now(), expiresAt,
+        notes: 'V6.2 automatic blockchain payment detection enabled. One confirmation required.'
       };
       account.status = 'reserved'; account.reservedUntil = expiresAt; account.reservedOrderId = orderId;
       state.orders.unshift(order);
@@ -1037,7 +1117,7 @@ const worker = {
       state.activity.push({ id: crypto.randomUUID(), action: 'Checkout started', actor: email, detail: `${orderId} · ${account.title} · ${paymentMethod}`, createdAt: now() });
       if (released) state.activity.push({ id: crypto.randomUUID(), action: 'Reservations released', actor: 'System', detail: 'Expired reservations were returned to stock.', createdAt: now() });
       await saveState(env, state);
-      return json({ orderId, account: publicAccount(account), amountUsd: asNumber(account.price), paymentMethod, paymentAddress, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'manual_v61' }, 201);
+      return json({ orderId, account: publicAccount(account), amountUsd: baseAmount, uniqueAmountUsd, cryptoAmount, paymentMethod, paymentAddress, exchangeRateUsd, expiresAt, supportEmail: BUSINESS_EMAIL, discord: DISCORD, paymentVerification: 'automatic_v62', confirmationsRequired: 1 }, 201);
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/api/checkout/order/")) {
@@ -1046,7 +1126,7 @@ const worker = {
       const id = decodeURIComponent(url.pathname.slice('/api/checkout/order/'.length));
       const order = state.orders.find((item) => item.id === id);
       if (!order) return json({ error: 'Order not found.' }, 404);
-      return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL });
+      await checkPendingPayments(env, state); return json({ id: order.id, service: order.service, status: order.status, paymentStatus: order.paymentStatus, amount: order.amount, uniqueAmountUsd: order.uniqueAmountUsd, cryptoAmount: order.cryptoAmount, currency: order.currency, paymentMethod: order.paymentMethod, paymentAddress: order.paymentAddress, confirmations: order.confirmations || 0, transactionHash: order.transactionHash, expiresAt: order.expiresAt, discord: DISCORD, supportEmail: BUSINESS_EMAIL });
     }
 
     if (request.method === "POST" && url.pathname === "/api/event") {

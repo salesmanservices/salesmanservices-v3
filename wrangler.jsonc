@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "salesman-services-v5",
+  "name": "salesman-services-v6",
   "main": "dist/server/index.js",
   "compatibility_date": "2026-07-30",
   "compatibility_flags": [
@@ -23,6 +23,7 @@
   ],
   "triggers": {
     "crons": [
+      "*/2 * * * *",
       "17 */6 * * *"
     ]
   },
