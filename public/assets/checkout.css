@@ -10,3 +10,14 @@
 .copy-button{padding:0 15px;border:1px solid #64512c;background:#17140d;color:#f2ce72;border-radius:9px;font-size:.84rem;white-space:nowrap}.copy-button.copied{background:#163722;color:#87e5a6;border-color:#32754a}
 .order-id-value{padding:12px;background:#0a0d12;border-radius:8px;font-weight:800;word-break:break-all}.expires-panel{display:flex;justify-content:space-between;gap:15px;align-items:center;margin:16px 0;padding:13px 15px;border-radius:10px;background:rgba(217,180,93,.08);border:1px solid rgba(217,180,93,.28)}.expires-panel b{font-size:1.2rem;color:#f1cf78}.exact-warning{margin:15px 0;padding:14px 16px;border:1px solid #7d5e22;border-radius:10px;background:#181309;color:#f4d77f}.exact-warning strong{display:block;margin-bottom:4px;color:#ffd66f}
 @media(max-width:560px){.copy-row{grid-template-columns:1fr}.copy-button{padding:12px}.expires-panel{align-items:flex-start;flex-direction:column}}
+
+/* V6.13.3 — stable payment-method layout */
+#checkoutForm fieldset{display:block;min-width:0}
+#checkoutForm fieldset legend{display:block;width:100%;margin:0 0 10px}
+#paymentMethods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0}
+#paymentMethods .coin{display:flex;align-items:center;gap:10px;width:100%;min-width:0;margin:0;padding:14px;border:1px solid #39404c;border-radius:12px;background:#0a0d12;cursor:pointer}
+#paymentMethods .coin input{flex:0 0 auto;width:auto;margin:0}
+#paymentMethods .coin span{display:block;min-width:0;line-height:1.3;overflow-wrap:anywhere}
+#paymentMethods .coin small{display:block;margin-top:4px;color:#b9b6ae;font-weight:500}
+#paymentMethods .payment-fallback-note{grid-column:1/-1;color:#b9b6ae;line-height:1.5}
+@media(max-width:560px){#paymentMethods{grid-template-columns:1fr}}
