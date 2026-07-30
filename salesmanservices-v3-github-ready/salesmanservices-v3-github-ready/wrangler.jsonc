@@ -1,10 +1,11 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "holy-tooth-c11a",
-  "main": "src/worker.js",
-  "compatibility_date": "2026-07-27",
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "salesman-services-v5",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./public",
+    "directory": "./dist/client",
     "binding": "ASSETS",
     "run_worker_first": true
   },
@@ -13,5 +14,11 @@
       "binding": "SALESMAN_DATA",
       "id": "8d033070ba124741a9cb3481aaede7ab"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["17 */6 * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
 }

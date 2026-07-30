@@ -1,0 +1,16 @@
+SALESMAN SERVICES V5 — GITHUB/CLOUDFLARE DEPLOYMENT
+
+1. Keep the working Sites V5 deployment as a backup.
+2. Upload the contents of this ZIP to the same GitHub repository root.
+3. Set Cloudflare Workers build command to `npm run build`.
+4. Set Cloudflare deploy command to `npx wrangler deploy`.
+5. Keep the SALESMAN_DATA KV binding in wrangler.jsonc.
+6. Add ADMIN_PASSWORD with `npx wrangler secret put ADMIN_PASSWORD`.
+7. Optionally add ADMIN_EMAIL with `npx wrangler secret put ADMIN_EMAIL`.
+8. Open /api/health; version must be 5.0 and kv must be true.
+9. Open /admin, save once, download a backup, and click Sync now.
+10. Test the public calculator, /api/pricing and /api/ai-inventory.
+
+The public design, account pictures, listings, calculators, services and links
+are preserved. V5 does not include BTC/LTC checkout or automatic payment
+confirmation; those remain V6.
