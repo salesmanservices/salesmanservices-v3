@@ -14,3 +14,5 @@ Cloudflare settings:
 - Deploy command: npx wrangler deploy
 
 Do not upload an older V5 ZIP over this version.
+
+- Disabled Cloudflare automatic HTML canonical redirects to prevent /admin/ redirect loop.
