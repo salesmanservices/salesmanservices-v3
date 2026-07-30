@@ -199,7 +199,7 @@ function renderAccounts() {
       image: "assets/accounts/zerker-1.png",
       tags: ["Negotiable"],
       description: "Edit this description.",
-      buy: data.settings?.discord || "https://discord.gg/HkUCNNQtmG",
+      buy: `/checkout?account=${encodeURIComponent("account")}`,
       button: "Buy securely",
       saleMethod: "crypto",
       status: "available",
@@ -253,8 +253,10 @@ function editAccount(index) {
     account.tags = document.querySelector("#accountTags").value.split(",").map((tag) => tag.trim()).filter(Boolean);
     account.status = document.querySelector("#accountStatus").value;
     account.saleMethod = document.querySelector("#accountSaleMethod").value;
-    account.buy = account.saleMethod === "discord" ? (data.settings?.discord || "https://discord.gg/xDSvKT3ThQ") : account.buy;
-    account.button = account.saleMethod === "discord" ? "Buy through Discord" : "Buy securely";
+    account.buy = account.saleMethod === "discord"
+      ? (data.settings?.discord || "https://discord.gg/xDSvKT3ThQ")
+      : `/checkout?account=${encodeURIComponent(account.id)}`;
+    account.button = account.saleMethod === "discord" ? "Buy through Discord" : "Buy with BTC / LTC";
     const primary = document.querySelector("#primaryUpload").files[0];
     const second = document.querySelector("#secondUpload").files[0];
     if (primary) account.image = await uploadImage(primary);

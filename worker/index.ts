@@ -452,7 +452,12 @@ function defaultSaleMethod(account: Account): "crypto" | "discord" {
 
 function normalizeAccountSaleMethod(account: Account): Account {
   const saleMethod = defaultSaleMethod(account);
-  return { ...account, saleMethod, buy: saleMethod === "discord" ? DISCORD : asString(account.buy), button: saleMethod === "discord" ? "Buy through Discord" : "Buy securely" };
+  return {
+    ...account,
+    saleMethod,
+    buy: saleMethod === "discord" ? DISCORD : `/checkout?account=${encodeURIComponent(asString(account.id))}`,
+    button: saleMethod === "discord" ? "Buy through Discord" : "Buy with BTC / LTC",
+  };
 }
 
 function defaultState(accounts: Account[], pricing?: Record<string, unknown>): SiteState {
@@ -664,8 +669,10 @@ function publicAccount(account: Account) {
     description: asString(account.description),
     image: asString(account.image),
     secondImage: asString(account.secondImage),
-    buy: asString(account.buy),
-    button: asString(account.button),
+    buy: defaultSaleMethod(account) === "discord"
+      ? DISCORD
+      : `/checkout?account=${encodeURIComponent(asString(account.id))}`,
+    button: defaultSaleMethod(account) === "discord" ? "Buy through Discord" : "Buy with BTC / LTC",
     saleMethod: defaultSaleMethod(account),
     soldDate: asString(account.soldDate),
   };
