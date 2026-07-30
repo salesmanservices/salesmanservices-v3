@@ -282,7 +282,23 @@ function renderOrders() {
     data.orders.unshift({ id: uid("order"), customerName: "New customer", service: "Service request", status: "new", amount: 0, currency: "USD", createdAt: new Date().toISOString(), notes: "" });
     renderOrders();
   };
-  document.querySelectorAll("[data-delete-order]").forEach((button) => (button.onclick = () => { data.orders.splice(Number(button.dataset.deleteOrder), 1); renderOrders(); }));
+  document.querySelectorAll("[data-delete-order]").forEach((button) => (button.onclick = () => {
+    const index = Number(button.dataset.deleteOrder);
+    const order = data.orders[index];
+    if (!order) return;
+    if (["paid", "completed"].includes(String(order.status || "").toLowerCase())) {
+      return alert("Paid or completed orders cannot be deleted. Keep them for delivery and audit history.");
+    }
+    if (!confirm("Delete this unpaid order and release its reserved account?")) return;
+    const account = data.accounts.find((item) => String(item.id || "") === String(order.accountId || ""));
+    if (account && String(account.status || "").toLowerCase() === "reserved" && String(account.reservedOrderId || "") === String(order.id || "")) {
+      account.status = "available";
+      delete account.reservedUntil;
+      delete account.reservedOrderId;
+    }
+    data.orders.splice(index, 1);
+    renderOrders();
+  }));
   document.querySelectorAll("[data-retry-delivery]").forEach((button) => (button.onclick = async () => { const order = data.orders[Number(button.dataset.retryDelivery)]; const response = await api(`/api/admin/delivery/retry/${encodeURIComponent(order.id)}`, { method: "POST" }); const payload = await response.json(); if (!response.ok) return alert(payload.error || "Delivery failed"); Object.assign(order, payload); renderOrders(); }));
   bindDataInputs();
 }

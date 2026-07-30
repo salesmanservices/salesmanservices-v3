@@ -676,6 +676,25 @@ function checkoutEligible(account: Account) {
   return defaultSaleMethod(account) === "crypto";
 }
 
+function releaseOrphanedReservationsAfterAdminSave(previous: SiteState, updated: SiteState) {
+  const activeOrderIds = new Set(
+    updated.orders
+      .filter((order) => !["expired", "cancelled"].includes(asString(order.status).toLowerCase()))
+      .map((order) => asString(order.id)),
+  );
+  let released = 0;
+  for (const account of updated.accounts) {
+    if (asString(account.status).toLowerCase() !== "reserved") continue;
+    const reservationId = asString(account.reservedOrderId);
+    if (reservationId && activeOrderIds.has(reservationId)) continue;
+    account.status = "available";
+    account.reservedUntil = undefined;
+    account.reservedOrderId = undefined;
+    released += 1;
+  }
+  return released;
+}
+
 function releaseExpiredReservations(state: SiteState) {
   const current = Date.now();
   let changed = false;
@@ -1180,6 +1199,16 @@ async function handleAdmin(
     const incoming = await request.json().catch(() => ({}));
     const updated = normalizeState(incoming, state);
     updated.activity = state.activity;
+    const releasedReservations = releaseOrphanedReservationsAfterAdminSave(state, updated);
+    if (releasedReservations > 0) {
+      updated.activity.push({
+        id: crypto.randomUUID(),
+        action: "Reservation released",
+        actor: actorName(env),
+        detail: `${releasedReservations} account reservation${releasedReservations === 1 ? "" : "s"} cleared after an unpaid order was removed or cancelled.`,
+        createdAt: now(),
+      });
+    }
     await logActivity(env, updated, "Data saved", "Admin data saved.", actorName(env));
     await saveBackup(env, updated, actorName(env));
     return json(updated);
