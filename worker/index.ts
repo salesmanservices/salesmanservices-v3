@@ -1,4 +1,4 @@
-/** Salesman Services V5 Worker.
+/** Salesman Services V6.13.4 Worker.
  *
  * The public V4.3 HTML/CSS/JS remains the visual source of truth. V5 adds a
  * durable admin data layer, inventory controls, activity/analytics tracking,
@@ -1133,7 +1133,7 @@ async function syncPricing(
   state.settings.sheetSyncStatus = imported.length ? "success" : "fallback";
   state.settings.sheetSyncMessage = imported.length
     ? `Imported ${imported.join(", ")}${errors.length ? `; ${errors.length} sheets kept previous values.` : ""}`
-    : "No sheet could be imported; previous working prices were kept.";
+    : `No sheet could be imported; previous working prices were kept.${errors.length ? ` Checked ${errors.length} sheet tabs. Last error: ${errors[errors.length - 1]}` : ""}`;
   await logActivity(
     env,
     state,
@@ -1402,7 +1402,7 @@ const worker = {
       const state = env.DB || env.SALESMAN_DATA ? await readState(env, request) : null;
       return json({
         ok: true,
-        version: "6.2",
+        version: "6.13.4",
         publicSite: true,
         liveInventory: true,
         admin: Boolean(env.ADMIN_PASSWORD),

@@ -164,6 +164,11 @@ function statCard(label, value, hint = "") {
 function renderDashboard() {
   const available = data.accounts.filter((account) => account.status !== "sold").length;
   const sold = data.accounts.filter((account) => account.status === "sold").length;
+  const sheetStatus = String(data.settings?.sheetSyncStatus || "never").toLowerCase();
+  const syncNeedsAttention = sheetStatus !== "success";
+  const healthText = syncNeedsAttention
+    ? "Website live · Pricing fallback"
+    : "Website live · Pricing synced";
   const activeOrders = data.orders.filter(
     (order) => !["completed", "cancelled"].includes(order.status),
   ).length;
@@ -171,9 +176,9 @@ function renderDashboard() {
     .filter((order) => order.status === "completed")
     .reduce((total, order) => total + Number(order.amount || 0), 0);
   panel.innerHTML = `
-    <div class="toolbar"><div><span class="eyebrow">Salesman Services V5</span><h1>Overview</h1><p class="muted">One control room for the live website, stock and operations.</p></div><span class="pill success">Public design unchanged</span></div>
+    <div class="toolbar"><div><span class="eyebrow">Salesman Services V6.13.4</span><h1>Overview</h1><p class="muted">One control room for the live website, stock and operations.</p></div><span class="pill ${syncNeedsAttention ? "warning" : "success"}">${healthText}</span></div>
     <div class="cards">${statCard("Available accounts", available, "Live public stock")}${statCard("Sold history", sold, "Kept out of active stock")}${statCard("Open orders", activeOrders, "Orders awaiting delivery")}${statCard("Completed revenue", money(revenue), "From saved orders")}</div>
-    <div class="split-panels"><article class="surface"><div class="surface-head"><h2>Recent activity</h2><button class="link-button" data-go="export">View all</button></div>${renderActivity(8)}</article><article class="surface"><div class="surface-head"><h2>Sheet sync</h2><button class="action small" id="quickSync">Sync now</button></div><p class="muted">${esc(data.settings?.sheetSyncMessage || "No pricing sync has run yet.")}</p><dl class="meta-list"><div><dt>Status</dt><dd>${esc(data.settings?.sheetSyncStatus || "never")}</dd></div><div><dt>Last sync</dt><dd>${dateText(data.settings?.lastSheetSync)}</dd></div></dl></article></div>`;
+    <div class="split-panels"><article class="surface"><div class="surface-head"><h2>Recent activity</h2><button class="link-button" data-go="export">View all</button></div>${renderActivity(8)}</article><article class="surface sync-panel ${syncNeedsAttention ? "needs-attention" : "is-healthy"}"><div class="surface-head"><div><h2>Sheet sync</h2><span class="sync-state">${syncNeedsAttention ? "Needs attention" : "Working"}</span></div><button class="action small" id="quickSync">Sync now</button></div><p class="muted">${esc(data.settings?.sheetSyncMessage || "No pricing sync has run yet.")}</p>${syncNeedsAttention ? '<p class="sync-help">Your previous working calculator prices remain active. Sync again after checking the configured Sheet IDs, tab names, and sharing access.</p>' : ""}<dl class="meta-list"><div><dt>Status</dt><dd>${esc(data.settings?.sheetSyncStatus || "never")}</dd></div><div><dt>Last sync</dt><dd>${dateText(data.settings?.lastSheetSync)}</dd></div></dl></article></div>`;
   document.querySelectorAll("[data-go]").forEach((button) => (button.onclick = () => render(button.dataset.go)));
   document.querySelector("#quickSync").onclick = syncSheet;
 }

@@ -21,3 +21,9 @@
 #paymentMethods .coin small{display:block;margin-top:4px;color:#b9b6ae;font-weight:500}
 #paymentMethods .payment-fallback-note{grid-column:1/-1;color:#b9b6ae;line-height:1.5}
 @media(max-width:560px){#paymentMethods{grid-template-columns:1fr}}
+
+/* V6.13.4 — keep the selected account title and price clearly separated */
+.product{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.product b{min-width:0}
+.product span{flex:none;white-space:nowrap}
+@media(max-width:560px){.product{align-items:flex-start;flex-direction:column;gap:7px}}

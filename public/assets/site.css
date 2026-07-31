@@ -589,6 +589,7 @@ body{overflow-x:hidden}
 .recently-sold-section{padding-top:12px;background:radial-gradient(circle at 12% 20%,rgba(216,46,54,.06),transparent 30%)}
 .sold-account-grid{grid-template-columns:minmax(0,430px)}
 .sold-account-card{position:relative;overflow:hidden;border-color:rgba(216,46,54,.22)}
+.sold-account-card:before{content:none;display:none}
 .sold-account-image{position:relative;filter:saturate(.62)}
 .sold-account-image:after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(8,8,10,.05),rgba(8,8,10,.42));pointer-events:none}
 .sold-ribbon{position:absolute;z-index:2;top:22px;right:-44px;width:176px;padding:9px 0;transform:rotate(38deg);text-align:center;background:linear-gradient(90deg,#8d1118,#d82e36);box-shadow:0 8px 24px rgba(0,0,0,.38);font-size:11px;font-weight:900;letter-spacing:.22em;color:#fff}

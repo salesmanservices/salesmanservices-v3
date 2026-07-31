@@ -45,6 +45,8 @@ const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isInte
 $$(".reveal").forEach(el=>observer.observe(el));
 
 function buildAccounts(){
+ const stockCount=document.querySelector('#stockCount');
+ if(stockCount)stockCount.textContent=String(accounts.length);
  const types=["All",...new Set(accounts.map(a=>a.type))];
  $("#accountFilters").innerHTML=types.map(t=>`<button class="${t==="All"?"active":""}" data-filter="${t}">${t}</button>`).join("");
  $$("#accountFilters button").forEach(btn=>btn.onclick=()=>{
