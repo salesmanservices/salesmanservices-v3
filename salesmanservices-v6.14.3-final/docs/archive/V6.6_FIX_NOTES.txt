@@ -1,0 +1,8 @@
+Salesman Services V6.6 checkout routing fix
+
+- Crypto listings always route to /checkout?account=<id>.
+- Discord-only listings always route to the configured Discord link.
+- 1 Defence Pure is forced to crypto checkout.
+- Skiller listings remain Discord-only.
+- Public and admin JavaScript URLs are cache-busted to prevent old browser/CDN code from being reused.
+- Old per-listing buy URLs can no longer override the selected Sale Method.

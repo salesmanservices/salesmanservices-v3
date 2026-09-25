@@ -1,0 +1,10 @@
+Salesman Services V6.10 Final
+
+Fixes:
+- Reserved listings now receive reservedUntil in the public inventory payload.
+- The storefront card and account modal show a live remaining-time countdown.
+- Wrangler keep_vars is enabled so dashboard-managed plaintext variables are preserved during deploys.
+
+Security:
+- Store ADMIN_PASSWORD, DISCORD_ORDER_WEBHOOK and VAULT_ENCRYPTION_KEY as Cloudflare Secrets, not plaintext variables.
+- Never commit their values to GitHub.

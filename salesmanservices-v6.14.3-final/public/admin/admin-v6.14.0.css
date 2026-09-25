@@ -1,0 +1,41 @@
+.pill.warning {
+  color: #ffd781;
+  border-color: #735a27;
+  background: #30250f;
+}
+
+.sync-state {
+  display: inline-flex;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.sync-panel.needs-attention {
+  border-color: #735a27;
+  background: linear-gradient(160deg, #211b11, #101319);
+}
+
+.sync-panel.needs-attention .sync-state {
+  color: #ffd781;
+}
+
+.sync-panel.is-healthy {
+  border-color: #315844;
+}
+
+.sync-panel.is-healthy .sync-state {
+  color: var(--green);
+}
+
+.sync-help {
+  margin: 14px 0 0;
+  padding: 12px 13px;
+  border: 1px solid #735a27;
+  border-radius: 10px;
+  background: #2a210f;
+  color: #e9d8af;
+  font-size: 12px;
+  line-height: 1.55;
+}
