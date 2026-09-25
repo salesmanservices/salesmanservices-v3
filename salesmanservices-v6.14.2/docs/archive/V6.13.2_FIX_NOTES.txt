@@ -1,0 +1,7 @@
+Salesman Services V6.13.2
+
+Checkout payment methods fail-safe fix:
+- Bitcoin and Litecoin are rendered directly in checkout HTML, so the page can never remain stuck on Loading payment methods.
+- JavaScript renders the fallback methods immediately before requesting live site data.
+- Saved admin payment methods replace the fallback when the API response arrives.
+- Added a version query to checkout.js to bypass browser and Cloudflare asset cache.
