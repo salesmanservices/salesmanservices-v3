@@ -1,0 +1,8 @@
+Salesman Services V6.12 - Dynamic Vouches & Feedback
+
+- Adds Public vouch count to Admin > Content & links.
+- Updates all homepage vouch counters instantly after Save changes.
+- Approved visible reviews from Admin > Reviews now appear automatically in the public Feedback section.
+- Sythe and Discord links continue to be managed from Admin.
+- No deployment is needed for future vouch-count or feedback updates.
+- Based on V6.11 reserved timer fix.

@@ -1,0 +1,5 @@
+V6.13.3
+- Fixed broken checkout payment-method layout.
+- Payment method legend now spans full width.
+- Bitcoin/Litecoin cards render in a clean two-column grid on desktop and one column on mobile.
+- Added cache-busting versions for checkout CSS and JavaScript.
