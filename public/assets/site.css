@@ -587,7 +587,7 @@ body{overflow-x:hidden}
 
 /* Recently sold account and activity proof */
 .recently-sold-section{padding-top:12px;background:radial-gradient(circle at 12% 20%,rgba(216,46,54,.06),transparent 30%)}
-.sold-account-grid{grid-template-columns:minmax(0,430px)}
+.sold-account-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .sold-account-card{position:relative;overflow:hidden;border-color:rgba(216,46,54,.22)}
 .sold-account-card:before{content:none;display:none}
 .sold-account-image{position:relative;filter:saturate(.62)}
@@ -599,6 +599,7 @@ body{overflow-x:hidden}
 .recent-sale-toast>button{position:absolute;right:10px;top:8px;border:0;background:transparent;color:#777;font-size:20px;cursor:pointer}
 .sale-dot{width:10px;height:10px;margin-top:5px;border-radius:50%;background:#d82e36;box-shadow:0 0 0 6px rgba(216,46,54,.1)}
 .recent-sale-toast div{display:grid;gap:4px}.recent-sale-toast small{font-size:8px;letter-spacing:.2em;color:#dcb55a}.recent-sale-toast b{font-size:12px;line-height:1.45;color:#fff}.recent-sale-toast p{margin:0;font-size:9px;color:var(--muted)}
+@media(max-width:1100px){.sold-account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.recent-sale-toast{left:12px;bottom:12px;width:calc(100vw - 24px)}.sold-account-grid{grid-template-columns:1fr}}
 
 /* V2 additions: language selector only; existing design remains unchanged */
@@ -623,3 +624,20 @@ body{overflow-x:hidden}
 .customer-review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}.customer-review-grid[hidden]{display:none}.customer-review-card{padding:22px;border:1px solid rgba(220,181,90,.16);border-radius:17px;background:rgba(10,10,13,.82);box-shadow:0 18px 45px rgba(0,0,0,.22)}.customer-review-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.customer-review-head b{color:#fff;font-size:14px}.customer-review-head span{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--premium-gold)}.customer-review-card p{margin:14px 0 10px;color:var(--muted);line-height:1.7}.customer-review-card small{color:#e8c36a;letter-spacing:.12em}@media(max-width:900px){.customer-review-grid{grid-template-columns:1fr}}
 
 .verified-review-badge{display:inline-flex;margin-top:10px;padding:5px 9px;border:1px solid rgba(232,195,106,.45);border-radius:999px;color:#e8c36a;font-size:.75rem;font-weight:700}
+
+
+/* V6.14 Marketplace + mobile refinement */
+.account-grid{align-items:stretch}.account-card{min-width:0}.account-image{background-color:#06070a}.account-info{display:flex;flex-direction:column}.account-info .tag-list{min-height:31px}.account-info .button{margin-top:auto}.sold-account-card .account-info p{min-height:48px}.sold-account-card .account-image{height:190px}.sold-account-card .account-info{padding-top:17px}.recently-sold-section .section-head p{max-width:560px}@media(max-width:1100px){.account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.account-image{height:220px}}@media(max-width:720px){.account-grid{grid-template-columns:1fr}.account-image,.sold-account-card .account-image{height:min(62vw,260px)}.account-info{padding:17px}.account-info p{min-height:auto}.account-meta b{font-size:18px}.account-card:hover{transform:none}.account-toolbar{align-items:flex-start;gap:10px;flex-direction:column}.filter-group{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.filter-group button{flex:0 0 auto}.section-head{gap:12px}.marketplace-trust{margin-top:16px}}@media(max-width:480px){.account-image,.sold-account-card .account-image{height:58vw;min-height:190px}.account-info h3{font-size:16px}.tag-list span{font-size:8px}.sold-ribbon{top:18px;right:-50px}}
+
+
+/* V6.14.1: dedicated compact sold showcase.
+   Kept independent from .account-grid so marketplace responsive rules cannot override it. */
+.recently-sold-section{overflow:hidden}
+.recently-sold-section .sold-showcase-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px;width:100%;align-items:stretch}
+.recently-sold-section .sold-showcase-grid>.sold-account-card{width:auto;min-width:0;height:100%;display:flex;flex-direction:column}
+.recently-sold-section .sold-showcase-grid .sold-account-image{height:190px;min-height:190px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.recently-sold-section .sold-showcase-grid .account-info{display:flex;flex:1;flex-direction:column}
+.recently-sold-section .sold-showcase-grid .account-info .button{margin-top:auto}
+.sold-showcase-note{margin-top:14px;text-align:center;color:var(--muted);font-size:10px;letter-spacing:.03em}
+@media(max-width:1000px){.recently-sold-section .sold-showcase-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:640px){.recently-sold-section .sold-showcase-grid{grid-template-columns:1fr!important;gap:14px}.recently-sold-section .sold-showcase-grid .sold-account-image{height:min(62vw,250px);min-height:190px}}

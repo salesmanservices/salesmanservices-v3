@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "salesman-services-v6",
   "main": "dist/server/index.js",
-  "compatibility_date": "2026-07-30",
+  "compatibility_date": "2026-09-24",
   "compatibility_flags": [
     "nodejs_compat"
   ],
@@ -30,5 +30,14 @@
   },
   "observability": {
     "enabled": true
+  },
+  "secrets": {
+    "required": [
+      "ADMIN_PASSWORD",
+      "DISCORD_ORDER_WEBHOOK",
+      "VAULT_ENCRYPTION_KEY",
+      "RESEND_API_KEY",
+      "DELIVERY_FROM_EMAIL"
+    ]
   }
 }

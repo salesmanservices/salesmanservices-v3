@@ -1,0 +1,5 @@
+V6.14.4 CLEAN ROOT
+
+IMPORTANT: Extract this ZIP on your computer. Open the extracted folder, select ALL files and folders INSIDE it, and upload those items to the ROOT of the GitHub repository. Do NOT upload the enclosing folder as a new directory.
+
+After upload, package.json, wrangler.jsonc, app/, public/, worker/ must be visible directly on the main repository page. There must NOT be a salesmanservices-v6.14.4-clean-root/ folder in GitHub.

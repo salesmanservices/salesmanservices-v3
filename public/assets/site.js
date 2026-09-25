@@ -71,10 +71,22 @@ function renderAccounts(){
  </article>`).join("");
  $$(".account-image").forEach(el=>el.onclick=()=>openAccount(el.dataset.id));
 }
+function enforceSoldGridLayout(){
+ const grid=$("#soldAccountGrid");
+ if(!grid)return;
+ const columns=window.innerWidth<=640?1:(window.innerWidth<=1000?2:3);
+ grid.style.setProperty("display","grid","important");
+ grid.style.setProperty("grid-template-columns",`repeat(${columns}, minmax(0, 1fr))`,"important");
+ grid.style.setProperty("gap",window.innerWidth<=640?"14px":"18px","important");
+ grid.style.setProperty("width","100%","important");
+ grid.style.setProperty("align-items","stretch","important");
+}
 function renderSoldAccounts(){
  const grid=$("#soldAccountGrid");
  if(!grid)return;
- grid.innerHTML=soldAccounts.map(a=>`
+ enforceSoldGridLayout();
+ const latest=[...soldAccounts].slice(-6).reverse();
+ grid.innerHTML=latest.map(a=>`
  <article class="account-card sold-account-card">
   <div class="account-image sold-account-image" data-sold-id="${a.id}" style="background-image:url('${a.image}')"><span class="sold-ribbon">SOLD</span></div>
   <div class="account-info">
@@ -84,7 +96,9 @@ function renderSoldAccounts(){
    <a class="button ghost" href="https://discord.gg/xDSvKT3ThQ" target="_blank" rel="noopener">Ask about similar accounts</a>
   </div>
  </article>`).join("");
+ enforceSoldGridLayout();
 }
+window.addEventListener("resize",enforceSoldGridLayout,{passive:true});
 function openAccount(id){
  const a=accounts.find(x=>x.id===id);if(!a)return;
  $("#modalContent").innerHTML=`

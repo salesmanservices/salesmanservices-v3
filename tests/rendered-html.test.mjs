@@ -33,7 +33,7 @@ test("renders development preview metadata", async () => {
   assert.match(await response.text(), developmentPreviewMeta);
 });
 
-test("keeps V6.13.4 stock, sold-card, checkout, and admin fixes in place", async () => {
+test("keeps V6.14 stock, sold-card, checkout, and admin fixes in place", async () => {
   const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
   const [siteHtml, siteJs, siteCss, checkoutCss, adminHtml, adminJs, adminCss] =
     await Promise.all([
@@ -43,7 +43,7 @@ test("keeps V6.13.4 stock, sold-card, checkout, and admin fixes in place", async
       read("../public/assets/checkout.css"),
       read("../public/admin/index.html"),
       read("../public/admin/admin.js"),
-      read("../public/admin/admin-v6.13.4.css"),
+      read("../public/admin/admin-v6.14.0.css"),
     ]);
 
   assert.match(siteHtml, /id="stockCount">7</);

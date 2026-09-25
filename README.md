@@ -1,40 +1,57 @@
-# Salesman Services V5
+# Salesman Services V6.14
 
-Salesman Services V5 preserves the public V4.3 website and adds the private
-operations dashboard at `/admin`.
+Production-ready project package for the Salesman Services marketplace.
 
-## Included
+## Start here
 
-- Existing public design, account screenshots, listings and service calculators
-- Live public and AI inventory
-- Password-protected admin dashboard
-- Account, order, customer, worker and review management
-- First-party page-view and click analytics
-- Activity log, backups and content controls
-- Google Sheets pricing sync every six hours
-- D1 persistence on ChatGPT Sites
-- `SALESMAN_DATA` KV persistence on external Cloudflare Workers
+1. **`FINAL_DEPLOY_CHECKLIST.md`** — do this before the first production deploy.
+2. **`V6.14_SETUP.md`** — full GitHub + Cloudflare setup.
+3. **`RESEND_CLOUDFLARE_QUICKSTART.md`** — exactly where to create and paste the Resend secrets.
+4. **`.dev.vars.example`** — placeholder names only; never put real secrets here in a GitHub commit.
 
-BTC/LTC checkout and automatic payment confirmation are not included in V5.
-Those remain planned for V6.
+## V6.14 includes
 
-## GitHub and Cloudflare
+- Professional 3-step checkout: Review → Pay → Delivery.
+- BTC/LTC payment flow with automatic payment monitoring.
+- Automatic account delivery through Resend after confirmed payment.
+- Automatic delivery retry for a paid order if the email provider temporarily fails.
+- Encrypted account credentials in the private Account Vault.
+- Responsive account inventory and compact Sold Accounts grid.
+- Mobile-first checkout and account cards.
+- Customer order-status timeline and delivery messaging.
+- Admin delivery retry control.
+- Cloudflare KV persistence and Worker cron checks.
+- Required-secret validation in `wrangler.jsonc`.
+- Git-safe secret handling: no production API keys, passwords, or webhook URLs are included.
 
-See `GITHUB_CLOUDFLARE_V5.md` for the complete deployment instructions.
+## Production architecture
 
-The external Cloudflare configuration is self-building: running
-`npx wrangler deploy` executes `npm run build` through `wrangler.jsonc` before
-deploying `dist/server/index.js`.
-
-## Local checks
-
-Requires Node.js `>=22.13.0`.
-
-```bash
-npm ci
-npm run build
-npm test
+```text
+Customer
+  ↓
+Salesman Services checkout
+  ↓
+Cloudflare Worker
+  ↓
+BTC / LTC payment monitoring
+  ↓
+Confirmed payment
+  ↓
+Account marked SOLD
+  ↓
+Encrypted Account Vault is decrypted server-side
+  ↓
+Resend API
+  ↓
+Customer email
 ```
 
-After deployment, open `/api/health`. A GitHub/Cloudflare deployment should
-report version `5.0` and `kv: true`.
+If Resend temporarily fails after payment confirmation, the order stays paid and the scheduled Worker checks retry delivery. The admin dashboard also has a manual retry action.
+
+## Important
+
+This repository cannot contain your live Cloudflare or Resend secret values. Configure them in **Cloudflare Workers & Pages → your Worker → Settings → Variables and Secrets → Production** and choose **Secret** for sensitive values.
+
+A successful GitHub upload alone does not prove that production email delivery works. After deployment, perform the controlled end-to-end test in `FINAL_DEPLOY_CHECKLIST.md`.
+
+Historical V5/V6 notes are kept under `docs/archive/` for reference and are not deployment instructions.

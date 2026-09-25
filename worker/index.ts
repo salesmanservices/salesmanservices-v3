@@ -1,4 +1,4 @@
-/** Salesman Services V6.13.4 Worker.
+/** Salesman Services V6.14.3 Worker.
  *
  * The public V4.3 HTML/CSS/JS remains the visual source of truth. V5 adds a
  * durable admin data layer, inventory controls, activity/analytics tracking,
@@ -351,10 +351,54 @@ async function notifyDiscord(env: Env, title: string, description: string, field
 
 async function checkPendingPayments(env: Env, state: SiteState) {
   let changed = releaseExpiredReservations(state);
-  for (const order of state.orders.filter(o => o.status === "pending_payment" && o.paymentStatus !== "expired")) {
+  const ordersToProcess = state.orders.filter(order =>
+    (order.status === "pending_payment" && order.paymentStatus !== "expired") ||
+    (order.status === "paid" && order.deliveryStatus !== "sent")
+  );
+
+  for (const order of ordersToProcess) {
     try {
       order.lastPaymentCheck = now();
       order.discordNotified ||= {};
+
+      // Paid orders are deliberately retried here. This makes email delivery
+      // resilient to a transient Resend/API/worker failure instead of leaving
+      // an already-paid customer stuck in the admin panel forever.
+      if (order.status === "paid") {
+        const account = state.accounts.find(a => asString(a.id) === asString(order.accountId));
+        if (!account) {
+          order.deliveryStatus = "failed";
+          order.deliveryError = "Account attached to this paid order was not found.";
+        } else {
+          account.status = "sold";
+          account.soldDate ||= now();
+          account.reservedUntil = undefined;
+          account.reservedOrderId = undefined;
+          try {
+            await deliverOrder(env, state, order, account);
+            if (order.deliveryStatus === "sent" && !order.discordNotified.delivered) {
+              await notifyDiscord(env, "Credentials delivered", `Automatic email delivery completed for **${order.id}**.`, [
+                { name: "Account", value: order.service || "Unknown", inline: true },
+                { name: "Customer", value: order.email || "Unknown", inline: true },
+              ]);
+              order.discordNotified.delivered = true;
+            }
+          } catch (deliveryError) {
+            order.deliveryStatus = "failed";
+            order.deliveryError = deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
+            if (!order.discordNotified.deliveryFailed) {
+              await notifyDiscord(env, "Delivery failed", `Automatic delivery failed for **${order.id}**.`, [
+                { name: "Account", value: order.service || "Unknown", inline: true },
+                { name: "Error", value: (order.deliveryError || "Unknown error").slice(0, 900) },
+              ]);
+              order.discordNotified.deliveryFailed = true;
+            }
+          }
+        }
+        changed = true;
+        continue;
+      }
+
       const hit = await findPayment(env, order);
       if (!hit) { changed = true; continue; }
       order.transactionHash = hit.tx_hash;
@@ -370,7 +414,7 @@ async function checkPendingPayments(env: Env, state: SiteState) {
       }
       if (order.confirmations >= 1) {
         order.status = "paid";
-        order.paidAt = now();
+        order.paidAt ||= now();
         if (!order.discordNotified.confirmed) {
           await notifyDiscord(env, "Payment confirmed", `Order **${order.id}** is paid.`, [
             { name: "Account", value: order.service || "Unknown", inline: true },
@@ -381,7 +425,10 @@ async function checkPendingPayments(env: Env, state: SiteState) {
         }
         const account = state.accounts.find(a => asString(a.id) === asString(order.accountId));
         if (account) {
-          account.status = "sold"; account.soldDate = now(); account.reservedUntil = undefined; account.reservedOrderId = undefined;
+          account.status = "sold";
+          account.soldDate ||= now();
+          account.reservedUntil = undefined;
+          account.reservedOrderId = undefined;
           try {
             await deliverOrder(env, state, order, account);
             if (order.deliveryStatus === "sent" && !order.discordNotified.delivered) {
@@ -485,7 +532,7 @@ async function deliverOrder(env: Env, state: SiteState, order: Order, account: A
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#0b0c10;color:#f6f2e8;padding:28px"><div style="max-width:640px;margin:auto;background:#17191f;border:1px solid #b98b3d;border-radius:14px;padding:28px"><h1 style="color:#e8c36a">Salesman Services</h1><p>Your payment for <b>${emailEscape(order.service)}</b> has been confirmed. Your account is ready.</p><table style="width:100%;border-collapse:collapse"><tr><td>Username</td><td><b>${emailEscape(credentials.username)}</b></td></tr><tr><td>Password</td><td><b>${emailEscape(credentials.password)}</b></td></tr><tr><td>Registered email</td><td><b>${emailEscape(credentials.registeredEmail)}</b></td></tr><tr><td>Email password</td><td><b>${emailEscape(credentials.emailPassword)}</b></td></tr><tr><td>Recovery information</td><td>${emailEscape(credentials.recoveryInfo || "None provided")}</td></tr><tr><td>Extra notes</td><td>${emailEscape(credentials.extraNotes || "None")}</td></tr></table><p style="margin-top:24px">For support: <a style="color:#e8c36a" href="${DISCORD}">Join our Discord</a></p><div style="margin-top:24px;padding:18px;background:#242118;border:1px solid #8e6b2f;border-radius:10px"><b style="color:#e8c36a">5% loyalty discount</b><p>${feedback}</p><p><a style="color:#e8c36a" href="${DISCORD}">Discord</a> · <a style="color:#e8c36a" href="${SYTHE}">Sythe vouch thread</a> · <a style="color:#e8c36a" href="${websiteFeedback}">Website feedback</a></p></div><p style="font-size:12px;color:#aaa;margin-top:24px">Order ${emailEscape(order.id)}. Change all passwords and recovery details immediately after logging in.</p></div></body></html>`;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.DELIVERY_FROM_EMAIL, to: [order.email], subject: `Your Salesman Services account — ${order.id}`, html }),
+    body: JSON.stringify({ from: env.DELIVERY_FROM_EMAIL, to: [order.email], reply_to: env.ADMIN_EMAIL || undefined, subject: `Your Salesman Services account — ${order.id}`, html }),
   });
   if (!response.ok) throw new Error(`Email provider returned ${response.status}: ${await response.text()}`);
   order.deliveryStatus = "sent"; order.deliveredAt = now(); order.deliveryError = undefined; order.status = "completed";
@@ -1395,14 +1442,18 @@ const worker = {
       // The normal Sites runtime always has site.html. The fallback keeps the
       // Vinext starter's health/render test useful when ASSETS is intentionally
       // mocked as unavailable.
-      return publicResponse.ok ? publicResponse : handler.fetch(request, env, ctx);
+      if (!publicResponse.ok) return handler.fetch(request, env, ctx);
+      const headers = new Headers(publicResponse.headers);
+      headers.set("cache-control", "no-cache, no-store, must-revalidate");
+      headers.set("x-salesman-version", "6.14.3");
+      return new Response(publicResponse.body, { status: publicResponse.status, statusText: publicResponse.statusText, headers });
     }
 
     if (request.method === "GET" && url.pathname === "/api/health") {
       const state = env.DB || env.SALESMAN_DATA ? await readState(env, request) : null;
       return json({
         ok: true,
-        version: "6.13.4",
+        version: "6.14.3",
         publicSite: true,
         liveInventory: true,
         admin: Boolean(env.ADMIN_PASSWORD),
