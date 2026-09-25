@@ -1,0 +1,7 @@
+Salesman Services V6.13.5
+
+- Hardened automatic email delivery: paid orders with unsent/failed delivery are retried by the existing Cloudflare scheduled worker.
+- A transient Resend/API/worker failure no longer leaves a paid order permanently waiting for manual intervention.
+- Preserved the existing admin delivery retry endpoint.
+- Recently sold accounts now display in a responsive 3-column grid on desktop, 2 columns on tablet, and 1 column on mobile instead of one long vertical column.
+- Bumped checkout asset versions to 6.13.5 for cache busting.
