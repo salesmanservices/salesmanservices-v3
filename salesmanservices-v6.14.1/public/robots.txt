@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /order
-Disallow: /checkout
-Sitemap: https://www.salesmanservices.com/sitemap.xml
