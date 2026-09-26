@@ -663,40 +663,97 @@ body{overflow-x:hidden}
 @keyframes v6151Beam{from{transform:translate3d(-2%,0,0) scale(1)}to{transform:translate3d(2%,1%,0) scale(1.04)}}
 @media(prefers-reduced-motion:reduce){.premium-bg:before{animation:none!important}}
 
-/* V6.17 — Dragon's Lair continuous-world backgrounds */
-#services{
-  position:relative;
-  background:
-    linear-gradient(to bottom,rgba(7,7,9,.58) 0%,rgba(7,7,9,.16) 18%,rgba(7,7,9,.20) 74%,rgba(7,7,9,.62) 100%),
-    linear-gradient(90deg,rgba(8,8,10,.20),rgba(8,8,10,.06),rgba(8,8,10,.16)),
-    url("forest-ruins-bg.jpg") center center/cover no-repeat;
-  background-attachment:scroll,scroll,scroll;
-}
-#accounts,#recently-sold,#calculator,.process-section,.trust-section{
-  position:relative;
-  background:
-    linear-gradient(to bottom,rgba(7,7,9,.64),rgba(7,7,9,.22) 22%,rgba(7,7,9,.28) 78%,rgba(7,7,9,.68)),
-    linear-gradient(90deg,rgba(8,8,10,.22),rgba(8,8,10,.08),rgba(8,8,10,.20)),
-    url("underground-vaults-bg.jpg") center center/cover no-repeat;
-  background-attachment:scroll,scroll,scroll;
-}
-#services:before,#accounts:before,#recently-sold:before,#calculator:before,.process-section:before,.trust-section:before{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(circle at 14% 20%,rgba(220,181,90,.08),transparent 28%),radial-gradient(circle at 84% 68%,rgba(164,22,26,.09),transparent 30%);
-}
-#services>* ,#accounts>* ,#recently-sold>* ,#calculator>* ,.process-section>* ,.trust-section>*{position:relative;z-index:1}
-.feedback-section,.faq-section,.final-cta{position:relative;background:linear-gradient(to bottom,rgba(7,7,9,.92),#070709 78%)}
-@media(max-width:900px){#services,#accounts,#recently-sold,#calculator,.process-section,.trust-section{background-attachment:scroll,scroll,scroll;background-position:center}}
-@media(prefers-reduced-motion:reduce){#services,#accounts,#recently-sold,#calculator,.process-section,.trust-section{background-attachment:scroll,scroll,scroll}}
 
-/* V6.17.4 — clean standalone scenery; no screenshot/UI artwork */
-#services,#accounts,#recently-sold,#calculator,.process-section,.trust-section{
-  background-repeat:no-repeat,no-repeat,no-repeat;
-  background-attachment:scroll,scroll,scroll;
+/* ==========================================================
+   V6.18 CLEAN WORLD REBUILD
+   Base: known-good V6.16 Dragon's Lair.
+   IMPORTANT: scenery assets are standalone artwork only.
+   No screenshots/mockups are used as page backgrounds.
+   ========================================================== */
+
+#services,
+#accounts,
+#recently-sold,
+#calculator,
+.process-section,
+.trust-section,
+#feedback,
+#faq,
+.final-cta{
+  position:relative;
+  isolation:isolate;
+  background-color:#08090b !important;
+  background-attachment:scroll !important;
+  background-repeat:no-repeat !important;
 }
+
+/* Forest Ruins — starts immediately below the Dragon's Lair hero. */
+#services{
+  background-image:
+    linear-gradient(to bottom,rgba(7,7,9,.30),rgba(7,8,10,.48) 60%,rgba(7,8,10,.72)),
+    url("forest-ruins-clean.jpg") !important;
+  background-size:cover,cover !important;
+  background-position:center,center 46% !important;
+}
+
+/* Fade the forest naturally into the deeper underground world. */
+#accounts{
+  background-image:
+    linear-gradient(to bottom,rgba(7,8,10,.48),rgba(7,7,9,.62) 82%,rgba(7,7,9,.78)),
+    url("forest-ruins-clean.jpg") !important;
+  background-size:cover,cover !important;
+  background-position:center,center 70% !important;
+}
+
+/* Underground Vaults — account/sold/calculator/process/trust area. */
+#recently-sold,
+#calculator,
+.process-section,
+.trust-section{
+  background-image:
+    linear-gradient(to bottom,rgba(6,7,9,.52),rgba(6,7,9,.66)),
+    url("underground-vaults-clean.jpg") !important;
+  background-size:cover,cover !important;
+  background-position:center,center !important;
+}
+
+/* End the world softly into the original black/gold lower site. */
+#feedback{
+  background-image:
+    linear-gradient(to bottom,rgba(6,7,9,.58),rgba(7,7,9,.88)),
+    url("underground-vaults-clean.jpg") !important;
+  background-size:cover,cover !important;
+  background-position:center,center 64% !important;
+}
+#faq,.final-cta{
+  background-image:
+    linear-gradient(to bottom,rgba(7,7,9,.90),rgba(7,7,9,.98)),
+    url("underground-vaults-clean.jpg") !important;
+  background-size:cover,cover !important;
+  background-position:center,center bottom !important;
+}
+
+/* Cards stay readable without hiding the scenery. */
+#services .service-card,
+#accounts .account-card,
+#recently-sold .account-card,
+#calculator .calculator-shell,
+.process-section .process-card,
+.trust-section .trust-card,
+#feedback .feedback-card{
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+}
+
+/* Natural scrolling everywhere. Never pin scenery to viewport. */
 @media(max-width:900px){
-  #services{background-position:center,center,52% center}
-  #accounts,#recently-sold,#calculator,.process-section,.trust-section{
-    background-position:center,center,55% center;
+  #services,#accounts,#recently-sold,#calculator,.process-section,
+  .trust-section,#feedback,#faq,.final-cta{
+    background-attachment:scroll !important;
+    background-size:auto 100%,cover !important;
+  }
+  #services,#accounts{background-position:center,54% center !important}
+  #recently-sold,#calculator,.process-section,.trust-section,#feedback,#faq,.final-cta{
+    background-position:center,52% center !important;
   }
 }
