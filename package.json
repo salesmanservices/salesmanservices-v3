@@ -1,6 +1,6 @@
 {
   "name": "salesman-services-v6",
-  "version": "6.14.4",
+  "version": "6.15.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -41,5 +41,5 @@
     "wrangler": "4.92.0"
   },
   "type": "module",
-  "displayName": "Salesman Services V6.14"
+  "displayName": "Salesman Services V6.15"
 }

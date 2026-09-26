@@ -313,3 +313,22 @@ async function loadManagedSiteData(){
   // Never allow the loading screen to trap visitors.
   window.setTimeout(()=>document.getElementById('loader')?.classList.add('hidden'),2200);
 })();
+
+// V6.15 ambient visual layer — deliberately lightweight and non-interactive.
+(function buildAmbientFx(){
+ const host=document.getElementById('ambientFx');
+ if(!host||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const particleCount=window.matchMedia('(max-width: 730px)').matches?14:28;
+ const runeCount=window.matchMedia('(max-width: 730px)').matches?4:8;
+ const frag=document.createDocumentFragment();
+ for(let i=0;i<particleCount;i++){
+  const e=document.createElement('i');e.className='ambient-particle';
+  e.style.left=`${(i*37)%101}%`;e.style.animationDuration=`${10+(i%7)*1.7}s`;e.style.animationDelay=`-${(i*2.3)%14}s`;e.style.width=e.style.height=`${2+(i%3)}px`;frag.appendChild(e);
+ }
+ const runes=['ᛉ','ᚱ','ᛏ','ᛋ','ᚹ','ᛃ','ᛞ','ᚲ'];
+ for(let i=0;i<runeCount;i++){
+  const e=document.createElement('i');e.className='ambient-rune';e.textContent=runes[i%runes.length];
+  e.style.left=`${8+((i*29)%86)}%`;e.style.fontSize=`${18+(i%4)*7}px`;e.style.animationDuration=`${18+(i%5)*3}s`;e.style.animationDelay=`-${(i*4.1)%20}s`;frag.appendChild(e);
+ }
+ host.appendChild(frag);
+})();

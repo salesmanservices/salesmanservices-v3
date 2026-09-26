@@ -641,3 +641,19 @@ body{overflow-x:hidden}
 .sold-showcase-note{margin-top:14px;text-align:center;color:var(--muted);font-size:10px;letter-spacing:.03em}
 @media(max-width:1000px){.recently-sold-section .sold-showcase-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:640px){.recently-sold-section .sold-showcase-grid{grid-template-columns:1fr!important;gap:14px}.recently-sold-section .sold-showcase-grid .sold-account-image{height:min(62vw,250px);min-height:190px}}
+
+/* V6.15 — Combined ambient experience: gold particles + runes + moving glow */
+.ambient-fx{position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none;contain:strict}
+.ambient-particle{position:absolute;top:-8vh;width:3px;height:3px;border-radius:50%;background:#f3c95e;opacity:.36;box-shadow:0 0 8px rgba(243,201,94,.65);animation:goldFall linear infinite}
+.ambient-rune{position:absolute;top:-12vh;color:rgba(230,190,84,.16);font-family:Georgia,serif;font-weight:700;text-shadow:0 0 16px rgba(220,181,90,.18);animation:runeFall linear infinite}
+.premium-bg:after{content:"";position:absolute;inset:-18%;background:radial-gradient(circle at 20% 20%,rgba(171,116,25,.12),transparent 28%),radial-gradient(circle at 78% 35%,rgba(143,20,25,.10),transparent 27%),radial-gradient(circle at 55% 82%,rgba(201,158,53,.08),transparent 24%);animation:ambientDrift 18s ease-in-out infinite alternate;will-change:transform}
+@keyframes goldFall{0%{transform:translate3d(0,-8vh,0) scale(.65);opacity:0}12%{opacity:.42}88%{opacity:.25}100%{transform:translate3d(28px,116vh,0) scale(1.1);opacity:0}}
+@keyframes runeFall{0%{transform:translate3d(0,-12vh,0) rotate(0deg);opacity:0}15%{opacity:.16}85%{opacity:.10}100%{transform:translate3d(-38px,118vh,0) rotate(80deg);opacity:0}}
+@keyframes ambientDrift{from{transform:translate3d(-2%,-1%,0) scale(1)}to{transform:translate3d(3%,2%,0) scale(1.08)}}
+.hero h1 em{filter:drop-shadow(0 0 16px rgba(220,181,90,.12));animation:heroGoldPulse 5s ease-in-out infinite}
+@keyframes heroGoldPulse{0%,100%{filter:drop-shadow(0 0 8px rgba(220,181,90,.08))}50%{filter:drop-shadow(0 0 22px rgba(220,181,90,.23))}}
+.account-card,.service-card{isolation:isolate}
+.account-card:after,.service-card:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:inset 0 0 0 1px rgba(238,197,91,.42),0 0 26px rgba(220,181,90,.11);transition:opacity .28s ease}
+.account-card:hover:after,.service-card:hover:before{opacity:1}
+@media(max-width:730px){.ambient-particle:nth-child(2n),.ambient-rune:nth-child(2n){display:none}.premium-bg:after{animation-duration:26s}.hero h1 em{animation:none}}
+@media(prefers-reduced-motion:reduce){.ambient-particle,.ambient-rune,.premium-bg:after,.hero h1 em{animation:none!important}.ambient-fx{display:none}}
