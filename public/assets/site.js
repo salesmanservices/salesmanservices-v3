@@ -318,8 +318,8 @@ async function loadManagedSiteData(){
 (function buildAmbientFx(){
  const host=document.getElementById('ambientFx');
  if(!host||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
- const particleCount=window.matchMedia('(max-width: 730px)').matches?14:28;
- const runeCount=window.matchMedia('(max-width: 730px)').matches?4:8;
+ const particleCount=window.matchMedia('(max-width: 730px)').matches?18:42;
+ const runeCount=window.matchMedia('(max-width: 730px)').matches?5:11;
  const frag=document.createDocumentFragment();
  for(let i=0;i<particleCount;i++){
   const e=document.createElement('i');e.className='ambient-particle';
@@ -332,3 +332,5 @@ async function loadManagedSiteData(){
  }
  host.appendChild(frag);
 })();
+
+console.info("Salesman Services V6.16.0 — combined visual layer active");
