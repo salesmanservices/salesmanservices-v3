@@ -757,3 +757,15 @@ body{overflow-x:hidden}
     background-position:center,52% center !important;
   }
 }
+
+/* V6.18.1 — close the tiny glowing seam between stacked world sections */
+#services,#accounts,#recently-sold,#calculator,.process-section,.trust-section,#feedback,#faq,.final-cta{
+  margin-top:-1px !important;
+  margin-bottom:-1px !important;
+  background-clip:border-box !important;
+}
+#services + section,#accounts + section,#recently-sold + section,#calculator + section,
+.process-section + section,.trust-section + section,#feedback + section,#faq + section{
+  border-top-color:transparent !important;
+  box-shadow:none;
+}
