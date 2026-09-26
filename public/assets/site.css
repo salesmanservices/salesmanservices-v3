@@ -669,16 +669,16 @@ body{overflow-x:hidden}
   background:
     linear-gradient(to bottom,rgba(7,7,9,.58) 0%,rgba(7,7,9,.16) 18%,rgba(7,7,9,.20) 74%,rgba(7,7,9,.62) 100%),
     linear-gradient(90deg,rgba(8,8,10,.20),rgba(8,8,10,.06),rgba(8,8,10,.16)),
-    url("forest-ruins-bg.jpg") center/cover no-repeat;
-  background-attachment:scroll,scroll,fixed;
+    url("forest-ruins-bg.jpg") center 35%/cover no-repeat;
+  background-attachment:scroll,scroll,scroll;
 }
 #accounts,#recently-sold,#calculator,.process-section,.trust-section{
   position:relative;
   background:
     linear-gradient(to bottom,rgba(7,7,9,.64),rgba(7,7,9,.22) 22%,rgba(7,7,9,.28) 78%,rgba(7,7,9,.68)),
     linear-gradient(90deg,rgba(8,8,10,.22),rgba(8,8,10,.08),rgba(8,8,10,.20)),
-    url("underground-vaults-bg.jpg") center/cover no-repeat;
-  background-attachment:scroll,scroll,fixed;
+    url("underground-vaults-bg.jpg") center 42%/cover no-repeat;
+  background-attachment:scroll,scroll,scroll;
 }
 #services:before,#accounts:before,#recently-sold:before,#calculator:before,.process-section:before,.trust-section:before{
   content:"";position:absolute;inset:0;pointer-events:none;
