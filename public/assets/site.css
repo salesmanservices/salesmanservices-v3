@@ -769,3 +769,12 @@ body{overflow-x:hidden}
   border-top-color:transparent !important;
   box-shadow:none;
 }
+
+/* V6.18.2 — exact support-strip seam fix.
+   The strip overlaps the hero by 54px but still reserved ~42px of flow height.
+   Pull the following Services section upward so the forest begins directly
+   behind/below the support strip instead of exposing the red ambient layer. */
+@media (min-width:901px){
+  .support-strip{margin-bottom:-43px !important;}
+  #services{padding-top:118px !important;}
+}
